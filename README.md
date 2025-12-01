@@ -72,6 +72,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 
 ### Queue behavior and sizing
 - Payloads are copied into the queue; `len > maxPayloadBytes` is rejected immediately.
+- Queue is a FreeRTOS Queue holding metadata (pointer+length+dest type) to pre-allocated fixed-size buffers; begin fails if the pool cannot be allocated.
 - Memory estimate: roughly `maxPayloadBytes * maxQueueLength` plus metadata (e.g., 1470B×16 ≈ 24KB).
 - For constrained RAM or legacy compatibility, lower `maxPayloadBytes` (e.g., 250) and tune `maxQueueLength`.
 

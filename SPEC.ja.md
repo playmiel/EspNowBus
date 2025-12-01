@@ -196,9 +196,12 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - 内部 FreeRTOS タスクが 1件ずつ処理
 - 送信完了は onSendResult で通知
 - `len > Config.maxPayloadBytes` の場合は即座に enqueue 失敗を返す
-- キュー投入時にペイロードをコピー（ユーザーがバッファを解放しても安全）  
-  - メモリ目安: 1エントリあたり `maxPayloadBytes + α` バイト程度。例: 1470B × 16 ≒ 24KB + メタデータ  
-  - メモリ削減が必要な場合は `maxPayloadBytes` を 250 などに下げ、`maxQueueLength` も併せて調整
+- 送信キュー用メモリは `begin()` で一括確保し、以後 malloc しない  
+  - ペイロードは固定長バッファ（`maxPayloadBytes` 分）にコピーして保持  
+  - キュー管理は FreeRTOS Queue（`xQueueCreate` 系）を使用。エントリは「バッファへのポインタ + 長さ + 宛先種別」などメタデータのみ  
+  - メモリ目安: `maxPayloadBytes * maxQueueLength` + メタデータ。例: 1470B × 16 ≒ 24KB + α  
+  - メモリが厳しい場合は `maxPayloadBytes` を 250 などに、`maxQueueLength` も小さめに調整  
+  - 事前確保に失敗した場合は `begin()` が `false` を返す
 - キュー投入のタイムアウトは `timeoutMs` 引数で指定。`kUseDefault` の場合は `Config.sendTimeoutMs` を使用  
   - `timeoutMs = 0`: 非ブロック  
   - `timeoutMs = portMAX_DELAY`: 無期限ブロック（ISR では使用不可）  

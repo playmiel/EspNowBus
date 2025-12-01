@@ -71,6 +71,7 @@ void loop() {
 
 ### キューの挙動とメモリ目安
 - ペイロードはキューにコピーされ、`len > maxPayloadBytes` は即失敗で返す。
+- 送信キューは FreeRTOS の Queue にメタデータ（ポインタ+長さ+宛先種別など）を積み、実データ用の固定長バッファは `begin()` 時にまとめて確保。以降は `malloc` しない。確保失敗時は begin が失敗。
 - メモリ目安: おおむね `maxPayloadBytes * maxQueueLength` にメタデータ分が加算（例: 1470B×16 ≒ 24KB）。
 - 省メモリ/互換性重視なら `maxPayloadBytes` を 250 などに下げ、`maxQueueLength` も適宜調整。
 
