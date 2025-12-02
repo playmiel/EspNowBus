@@ -101,6 +101,8 @@ public:
     using ReceiveCallback = void (*)(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry);
     using SendResultCallback = void (*)(const uint8_t *mac, SendStatus status);
     using AppAckCallback = void (*)(const uint8_t *mac, uint16_t msgId);
+    using JoinEventCb = void (*)(const uint8_t mac[6], bool accepted, bool isAck);
+    using PurgeEventCb = void (*)(const uint8_t mac[6]);
 
     bool begin(const Config &cfg);
 
@@ -118,6 +120,8 @@ public:
     void onReceive(ReceiveCallback cb);
     void onSendResult(SendResultCallback cb);
     void onAppAck(AppAckCallback cb);
+    void onJoinEvent(JoinEventCb cb);
+    void onPeerPurged(PurgeEventCb cb);
 
     bool addPeer(const uint8_t mac[6]);
     bool removePeer(const uint8_t mac[6]);

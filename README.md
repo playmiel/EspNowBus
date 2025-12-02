@@ -74,6 +74,7 @@ void loop() {
 - `replayWindowBcast` (default `64`): broadcast replay window (set 0 to disable).
 - `replayWindowJoin` (default `64`): JOIN replay window（how many JOIN seq to remember; set 0 to disable replay drop). Helps avoid processing duplicate JOINs during bursts or retries. Values >64 are clamped internally (64-bit window).
 - `maxAckFailures`/`failureWindowMs`/`rejoinAfterPurge`: optional auto-purge on consecutive `AppAckTimeout`/`SendFailed` (0 disables), with optional auto re-JOIN.
+- Optional callbacks: `onJoinEvent(mac, accepted, isAck)` and `onPeerPurged(mac)` for JOIN handling and purge notifications.
 
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  

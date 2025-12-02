@@ -231,6 +231,10 @@ public:
     void setAcceptRegistration(bool enable);
 
     bool sendRegistrationRequest();
+
+    // イベントコールバック設定
+    void onJoinEvent(JoinEventCb cb);   // JOIN 受理/拒否/成功時
+    void onPeerPurged(PurgeEventCb cb); // 自動パージ時
 };
 
 // timeout の特別値
