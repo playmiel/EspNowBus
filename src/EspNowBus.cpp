@@ -388,13 +388,13 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         }
         return;
     } else if (type == PacketType::ControlJoinAck) {
+        if (!instance_->pendingJoin_) return; // ignore unsolicited ack
         if (idx < 0) {
             idx = instance_->ensurePeer(mac);
         }
         if (idx >= 0 && payloadLen >= static_cast<int>(kNonceLen * 2)) {
-            if (instance_->pendingJoin_ && memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
-                instance_->pendingJoin_ = false; // Authenticated responder
-                // Optionally store nonceB for future rejoin validation
+            if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
+                instance_->pendingJoin_ = false; // authenticated responder (keyAuth + nonceA match)
                 memcpy(instance_->peers_[idx].lastNonceB, payload + kNonceLen, kNonceLen);
             }
         }
