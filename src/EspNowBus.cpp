@@ -256,6 +256,34 @@ bool EspNowBus::hasPeer(const uint8_t mac[6]) const
     return findPeerIndex(mac) >= 0;
 }
 
+size_t EspNowBus::peerCount() const
+{
+    size_t cnt = 0;
+    for (size_t i = 0; i < kMaxPeers; ++i)
+    {
+        if (peers_[i].inUse)
+            ++cnt;
+    }
+    return cnt;
+}
+
+bool EspNowBus::getPeer(size_t index, uint8_t macOut[6]) const
+{
+    size_t cnt = 0;
+    for (size_t i = 0; i < kMaxPeers; ++i)
+    {
+        if (!peers_[i].inUse)
+            continue;
+        if (cnt == index)
+        {
+            memcpy(macOut, peers_[i].mac, 6);
+            return true;
+        }
+        ++cnt;
+    }
+    return false;
+}
+
 void EspNowBus::setAcceptRegistration(bool enable)
 {
     config_.canAcceptRegistrations = enable;

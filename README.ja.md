@@ -83,6 +83,7 @@ void loop() {
 - メモリ目安: おおむね `maxPayloadBytes * maxQueueLength` にメタデータ分が加算（例: 1470B×16 ≒ 24KB）。
 - 省メモリ/互換性重視なら `maxPayloadBytes` を 250 などに下げ、`maxQueueLength` も適宜調整。
 - キューの状況確認: `sendQueueFree()` / `sendQueueSize()` で空きスロット数と投入済み件数を取得可能。
+- ピア参照: `peerCount()` と `getPeer(index, macOut)` で登録済みピアを列挙できる。
 
 ### リトライと重複扱い
 - 送信タスクは単一の送信スロットとフラグを持ち、ESP-NOW 送信完了 CB でフラグを下ろして `onSendResult` を通知。

@@ -84,6 +84,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Memory estimate: roughly `maxPayloadBytes * maxQueueLength` plus metadata (e.g., 1470B×16 ≈ 24KB).
 - For constrained RAM or legacy compatibility, lower `maxPayloadBytes` (e.g., 250) and tune `maxQueueLength`.
 - Introspection: `sendQueueFree()`/`sendQueueSize()` return remaining slots and enqueued count.
+- Peer introspection: `peerCount()` and `getPeer(index, macOut)` allow enumerating known peers.
 
 ### Retries and duplicate handling
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.

@@ -122,6 +122,8 @@ public:
     bool addPeer(const uint8_t mac[6]);
     bool removePeer(const uint8_t mac[6]);
     bool hasPeer(const uint8_t mac[6]) const;
+    size_t peerCount() const;
+    bool getPeer(size_t index, uint8_t macOut[6]) const;
 
     void setAcceptRegistration(bool enable);
 
