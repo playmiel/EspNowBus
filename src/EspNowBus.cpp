@@ -187,6 +187,8 @@ bool EspNowBus::sendRegistrationRequest() {
     uint32_t t = millis();
     memcpy(payload, &t, sizeof(t));
     esp_fill_random(payload + sizeof(t), kNonceLen - sizeof(t));
+    memcpy(pendingNonceA_, payload, kNonceLen);
+    pendingJoin_ = true;
     return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, payload, sizeof(payload), kUseDefault);
 }
 
@@ -276,7 +278,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
     buf[1] = kVersion;
     buf[2] = pktType;
     buf[3] = 0; // flags
-    uint16_t idField = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq) ? seq : msgId;
+    uint16_t idField = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck) ? seq : msgId;
     buf[4] = static_cast<uint8_t>(idField & 0xFF);
     buf[5] = static_cast<uint8_t>((idField >> 8) & 0xFF);
 
@@ -374,8 +376,9 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         if (idx >= 0 && instance_->config_.canAcceptRegistrations) {
             instance_->addPeer(mac);
             if (payloadLen >= kNonceLen) {
-                uint8_t ackPayload[kNonceLen];
-                memcpy(ackPayload, payload, kNonceLen);
+                uint8_t ackPayload[kNonceLen * 2];
+                memcpy(ackPayload, payload, kNonceLen); // echo nonceA
+                esp_fill_random(ackPayload + kNonceLen, kNonceLen); // nonceB
                 instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
             }
         }
@@ -384,6 +387,11 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         // Ensure peer is registered
         if (idx < 0) {
             instance_->addPeer(mac);
+        }
+        if (payloadLen >= static_cast<int>(kNonceLen * 2) && instance_->pendingJoin_) {
+            if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
+                instance_->pendingJoin_ = false; // success
+            }
         }
         return;
     } else {
