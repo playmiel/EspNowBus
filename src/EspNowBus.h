@@ -140,6 +140,8 @@ private:
         uint16_t lastJoinSeqBase = 0;
         uint64_t joinWindow = 0;
         uint8_t lastNonceB[kNonceLen]{};
+
+        uint16_t lastAppAckId = 0;
     };
 
     Config config_{};
@@ -206,4 +208,5 @@ private:
     bool acceptBroadcastSeq(PeerInfo& peer, uint16_t seq);
     bool acceptJoinSeq(PeerInfo& peer, uint16_t seq);
     void reseedCounters(uint32_t now);
+    bool acceptAppAck(PeerInfo& peer, uint16_t msgId);
 };

@@ -483,14 +483,16 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
     } else if (type == PacketType::ControlAppAck) {
         if (payloadLen < static_cast<int>(sizeof(AppAckPayload))) return;
         const AppAckPayload* ack = reinterpret_cast<const AppAckPayload*>(payload);
+        if (idx >= 0 && !instance_->acceptAppAck(instance_->peers_[idx], ack->msgId)) {
+            ESP_LOGW(TAG, "app-ack replay drop msgId=%u", ack->msgId);
+            return;
+        }
         if (instance_->txInFlight_ && instance_->currentTx_.expectAck && ack->msgId == instance_->currentTx_.msgId) {
             if (instance_->onSendResult_) instance_->onSendResult_(mac, SendStatus::AppAckReceived);
             instance_->freeBuffer(instance_->currentTx_.bufferIndex);
             instance_->txInFlight_ = false;
             instance_->retryCount_ = 0;
-        }
-        // If app-ack arrives but no in-flight match, log warning
-        else if (!instance_->txInFlight_) {
+        } else if (!instance_->txInFlight_) {
             ESP_LOGW(TAG, "app-ack late or no in-flight msgId=%u", ack->msgId);
         }
         if (instance_->onAppAck_) {
@@ -746,5 +748,14 @@ bool EspNowBus::acceptJoinSeq(PeerInfo& peer, uint16_t seq) {
     }
     peer.joinWindow |= 1ULL;
     peer.lastJoinSeqBase = seq;
+    return true;
+}
+
+bool EspNowBus::acceptAppAck(PeerInfo& peer, uint16_t msgId) {
+    // Simple check: accept if not equal to last seen; update last
+    if (peer.lastAppAckId == msgId) {
+        return false;
+    }
+    peer.lastAppAckId = msgId;
     return true;
 }
