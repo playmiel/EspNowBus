@@ -4,8 +4,8 @@
 
 Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. EspNowBus focuses on keeping small networks (≈6 nodes) secure by default while exposing a simple Arduino-style API.
 
-> Status: design phase. See `SPEC.ja.md` for the current specification; interfaces may change as the library is implemented.
-> Current code: basic queue/retry/timeout scaffolding is in place; security (encryption/auth) and JOIN flow are not implemented yet.
+> Status: design phase. See `SPEC.ja.md` for the current specification; interfaces may change as the library is implemented.  
+> Current code: queue/retry/timeout and a minimal (unauthenticated) JOIN request/ack flow are implemented. Security (encryption/auth) is not yet implemented.
 
 ## Highlights
 - Simple API: `begin()`, `sendTo()`, `broadcast()`, `onReceive()`, `onSendResult()`.
@@ -84,7 +84,8 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
 - If the flag stays set longer than `txTimeoutMs`, treat as timeout and retry (or fail) using the same message ID/sequence; `retryDelayMs` defaults to 0 (immediate retry).
 - Retries set a retry flag; receivers drop duplicate `msgId/seq` per peer and may optionally surface "wasRetry" metadata in callbacks.
- - Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
+- Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
+- Minimal JOIN flow: `sendRegistrationRequest()` broadcasts a ControlJoinReq; nodes that can accept register the sender and unicast ControlJoinAck back. (No auth/encryption yet.)
 
 ## Callbacks
 - `onReceive(cb)`: called for accepted unicast and authenticated broadcast packets.

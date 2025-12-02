@@ -4,8 +4,8 @@
 
 ESP32 / Arduino 向けの軽量な ESP-NOW グループメッセージバス。小規模ネットワーク（目安 6 ノード）の利用を前提に、暗号化と認証をデフォルト有効化しつつ、Arduino らしい簡潔な API を提供します。
 
-> ステータス: 仕様策定フェーズ。実装に伴い API が変わる可能性があります。詳細な仕様は `SPEC.ja.md` を参照してください。
-> 現状コード: キュー/リトライ/タイムアウトの骨格のみ。暗号化・認証・JOIN フローは未実装です。
+> ステータス: 仕様策定フェーズ。実装に伴い API が変わる可能性があります。詳細な仕様は `SPEC.ja.md` を参照してください。  
+> 現状コード: キュー/リトライ/タイムアウトと簡易（非認証）JOIN req/ack のみ実装。暗号化・認証は未実装です。
 
 ## 特徴
 - シンプルな API: `begin()`, `sendTo()`, `broadcast()`, `onReceive()`, `onSendResult()`。
@@ -84,6 +84,7 @@ void loop() {
 - フラグが立ったまま `txTimeoutMs` を超えたらタイムアウト扱い→同じ msgId/seq で `maxRetries` 回までリトライ（`retryDelayMs` 既定 0 で即再送）。
 - リトライ時はリトライフラグを立て、受信側は peer ごとに `msgId/seq` を見て重複を破棄（必要ならコールバックにリトライ情報を渡す）。
 - 送信完了 CB では共有状態を触らず、FreeRTOS のタスク通知（`xTaskNotifyFromISR`）で送信タスクに結果を渡し、送信タスク側でフラグを下ろして `onSendResult` を実行する。
+- 簡易 JOIN フロー: `sendRegistrationRequest()` で ControlJoinReq をブロードキャストし、受け入れ可能ノードが peer 登録して ControlJoinAck をユニキャスト返信（認証・暗号化は未実装）。
 
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。

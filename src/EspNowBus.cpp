@@ -320,6 +320,19 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             return;
         }
         if (idx >= 0) instance_->peers_[idx].lastBroadcastSeq = id;
+    } else if (type == PacketType::ControlJoinReq) {
+        // Add peer and reply with Ack
+        if (idx >= 0 && instance_->config_.canAcceptRegistrations) {
+            instance_->addPeer(mac);
+            const uint8_t dummy = 0;
+            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, &dummy, sizeof(dummy), kUseDefault);
+        }
+        return;
+    } else if (type == PacketType::ControlJoinAck) {
+        // Ensure peer is registered
+        (void)idx;
+        instance_->addPeer(mac);
+        return;
     } else {
         // Control packets not yet handled
         return;
