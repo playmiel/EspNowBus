@@ -183,11 +183,14 @@ void EspNowBus::setAcceptRegistration(bool enable) {
 
 bool EspNowBus::sendRegistrationRequest() {
     static const uint8_t bcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-    uint8_t payload[kNonceLen];
+    uint8_t payload[kNonceLen * 2] = {};
     uint32_t t = millis();
     memcpy(payload, &t, sizeof(t));
     esp_fill_random(payload + sizeof(t), kNonceLen - sizeof(t));
     memcpy(pendingNonceA_, payload, kNonceLen);
+    if (storedNonceBValid_) {
+        memcpy(payload + kNonceLen, storedNonceB_, kNonceLen);
+    }
     pendingJoin_ = true;
     return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, payload, sizeof(payload), kUseDefault);
 }
@@ -378,12 +381,16 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 return;
             }
             instance_->addPeer(mac);
-            if (payloadLen >= kNonceLen) {
+            if (payloadLen >= static_cast<int>(kNonceLen * 2)) {
+                const uint8_t* nonceA = payload;
+                const uint8_t* prevToken = payload + kNonceLen;
+                bool resumed = memcmp(prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
                 uint8_t ackPayload[kNonceLen * 2];
-                memcpy(ackPayload, payload, kNonceLen); // echo nonceA
+                memcpy(ackPayload, nonceA, kNonceLen); // echo nonceA
                 esp_fill_random(ackPayload + kNonceLen, kNonceLen); // nonceB
                 memcpy(instance_->peers_[idx].lastNonceB, ackPayload + kNonceLen, kNonceLen);
                 instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
+                (void)resumed; // reserved for future policy
             }
         }
         return;
@@ -396,6 +403,8 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
                 instance_->pendingJoin_ = false; // authenticated responder (keyAuth + nonceA match)
                 memcpy(instance_->peers_[idx].lastNonceB, payload + kNonceLen, kNonceLen);
+                memcpy(instance_->storedNonceB_, payload + kNonceLen, kNonceLen);
+                instance_->storedNonceBValid_ = true;
             }
         }
         return;

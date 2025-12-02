@@ -153,6 +153,8 @@ private:
 
     bool pendingJoin_ = false;
     uint8_t pendingNonceA_[kNonceLen]{};
+    uint8_t storedNonceB_[kNonceLen]{};
+    bool storedNonceBValid_ = false;
 
     static void onSendStatic(const uint8_t* mac, esp_now_send_status_t status);
     static void onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len);

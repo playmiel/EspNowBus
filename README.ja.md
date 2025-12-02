@@ -5,7 +5,7 @@
 ESP32 / Arduino 向けの軽量な ESP-NOW グループメッセージバス。小規模ネットワーク（目安 6 ノード）の利用を前提に、暗号化と認証をデフォルト有効化しつつ、Arduino らしい簡潔な API を提供します。
 
 > ステータス: 仕様策定フェーズ。実装に伴い API が変わる可能性があります。詳細な仕様は `SPEC.ja.md` を参照してください。  
-> 現状コード: キュー/リトライ/タイムアウト、groupName からの鍵派生と ESP-NOW 用 PMK/LMK 設定、Broadcast/Control 用の HMAC（keyBcast/keyAuth）と、nonceA をエコーし nonceB を返す簡易な認証付き JOIN req/ack を実装。
+> 現状コード: キュー/リトライ/タイムアウト、groupName からの鍵派生と ESP-NOW 用 PMK/LMK 設定、Broadcast/Control 用の HMAC（keyBcast/keyAuth）と、nonceA エコー＋ responder nonceB 返却＋ resumption token 同梱の簡易認証付き JOIN req/ack を実装。
 
 ## 特徴
 - シンプルな API: `begin()`, `sendTo()`, `broadcast()`, `onReceive()`, `onSendResult()`。
