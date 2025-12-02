@@ -166,6 +166,7 @@ private:
     uint8_t pendingNonceA_[kNonceLen]{};
     uint8_t storedNonceB_[kNonceLen]{};
     bool storedNonceBValid_ = false;
+    uint32_t lastReseedMs_ = 0;
 
     static void onSendStatic(const uint8_t* mac, esp_now_send_status_t status);
     static void onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len);
@@ -186,4 +187,5 @@ private:
     bool verifyAuthTag(const uint8_t* msg, size_t len, uint8_t pktType);
     bool acceptBroadcastSeq(PeerInfo& peer, uint16_t seq);
     bool acceptJoinSeq(PeerInfo& peer, uint16_t seq);
+    void reseedCounters(uint32_t now);
 };

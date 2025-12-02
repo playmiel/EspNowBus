@@ -53,9 +53,10 @@ bool EspNowBus::begin(const Config& cfg) {
     esp_now_register_send_cb(&EspNowBus::onSendStatic);
     esp_now_register_recv_cb(&EspNowBus::onReceiveStatic);
 
-    // seed RNG periodically if needed (one-time here)
+    // seed RNG for counters
     esp_fill_random(&msgCounter_, sizeof(msgCounter_));
     esp_fill_random(&broadcastSeq_, sizeof(broadcastSeq_));
+    lastReseedMs_ = millis();
 
     // Ensure broadcast peer exists
     const uint8_t broadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
@@ -524,13 +525,14 @@ bool EspNowBus::sendNextIfIdle(TickType_t waitTicks) {
 
 void EspNowBus::sendTaskLoop() {
     while (true) {
+        uint32_t nowMs = millis();
+        reseedCounters(nowMs);
         if (!txInFlight_) {
             sendNextIfIdle(portMAX_DELAY);
             continue;
         }
-        uint32_t now = millis();
         uint32_t deadline = txDeadlineMs_;
-        TickType_t waitTicks = (deadline > now) ? pdMS_TO_TICKS(deadline - now) : 0;
+        TickType_t waitTicks = (deadline > nowMs) ? pdMS_TO_TICKS(deadline - nowMs) : 0;
         uint32_t notifyVal = 0;
         BaseType_t notified = xTaskNotifyWait(0, 0xFFFFFFFF, &notifyVal, waitTicks);
         if (notified == pdTRUE) {
@@ -609,6 +611,14 @@ bool EspNowBus::verifyAuthTag(const uint8_t* msg, size_t len, uint8_t pktType) {
     uint8_t calc[kAuthTagLen];
     computeAuthTag(calc, msg, tagOffset, key);
     return memcmp(calc, msg + tagOffset, kAuthTagLen) == 0;
+}
+
+void EspNowBus::reseedCounters(uint32_t now) {
+    if (now - lastReseedMs_ < kReseedIntervalMs) return;
+    lastReseedMs_ = now;
+    esp_fill_random(&msgCounter_, sizeof(msgCounter_));
+    esp_fill_random(&broadcastSeq_, sizeof(broadcastSeq_));
+    ESP_LOGI(TAG, "reseed counters");
 }
 
 bool EspNowBus::acceptBroadcastSeq(PeerInfo& peer, uint16_t seq) {
