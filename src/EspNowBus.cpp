@@ -195,16 +195,16 @@ void EspNowBus::setAcceptRegistration(bool enable) {
 
 bool EspNowBus::sendRegistrationRequest() {
     static const uint8_t bcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-    uint8_t payload[kNonceLen * 2] = {};
+    JoinReqPayload payload{};
     uint32_t t = millis();
-    memcpy(payload, &t, sizeof(t));
-    esp_fill_random(payload + sizeof(t), kNonceLen - sizeof(t));
-    memcpy(pendingNonceA_, payload, kNonceLen);
+    memcpy(payload.nonceA, &t, sizeof(t));
+    esp_fill_random(payload.nonceA + sizeof(t), kNonceLen - sizeof(t));
+    memcpy(pendingNonceA_, payload.nonceA, kNonceLen);
     if (storedNonceBValid_) {
-        memcpy(payload + kNonceLen, storedNonceB_, kNonceLen);
+        memcpy(payload.prevToken, storedNonceB_, kNonceLen);
     }
     pendingJoin_ = true;
-    return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, payload, sizeof(payload), kUseDefault);
+    return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, &payload, sizeof(payload), kUseDefault);
 }
 
 bool EspNowBus::initPeers(const uint8_t peers[][6], size_t count) {
@@ -397,22 +397,21 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 return;
             }
             instance_->addPeer(mac);
-            if (payloadLen < static_cast<int>(kNonceLen * 2)) {
+            if (payloadLen < static_cast<int>(sizeof(JoinReqPayload))) {
                 ESP_LOGW(TAG, "join req too short");
                 return;
             }
-            const uint8_t* nonceA = payload;
-            const uint8_t* prevToken = payload + kNonceLen;
-            bool resumed = memcmp(prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
+            const JoinReqPayload* req = reinterpret_cast<const JoinReqPayload*>(payload);
+            bool resumed = memcmp(req->prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
             if (instance_->storedNonceBValid_ && !resumed) {
                 ESP_LOGW(TAG, "join prevToken mismatch");
                 return;
             }
-            uint8_t ackPayload[kNonceLen * 2];
-            memcpy(ackPayload, nonceA, kNonceLen); // echo nonceA
-            esp_fill_random(ackPayload + kNonceLen, kNonceLen); // nonceB
-            memcpy(instance_->peers_[idx].lastNonceB, ackPayload + kNonceLen, kNonceLen);
-            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
+            JoinAckPayload ackPayload{};
+            memcpy(ackPayload.nonceA, req->nonceA, kNonceLen); // echo nonceA
+            esp_fill_random(ackPayload.nonceB, kNonceLen);     // nonceB
+            memcpy(instance_->peers_[idx].lastNonceB, ackPayload.nonceB, kNonceLen);
+            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, &ackPayload, sizeof(ackPayload), kUseDefault);
             ESP_LOGI(TAG, "join ack sent resumed=%d", resumed);
         }
         return;
@@ -428,14 +427,15 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 return;
             }
         }
-        if (payloadLen < static_cast<int>(kNonceLen * 2)) {
+        if (payloadLen < static_cast<int>(sizeof(JoinAckPayload))) {
             ESP_LOGW(TAG, "join ack too short");
             return;
         }
-        if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
+        const JoinAckPayload* ack = reinterpret_cast<const JoinAckPayload*>(payload);
+        if (memcmp(ack->nonceA, instance_->pendingNonceA_, kNonceLen) == 0) {
             instance_->pendingJoin_ = false; // authenticated responder (keyAuth + nonceA match)
-            memcpy(instance_->peers_[idx].lastNonceB, payload + kNonceLen, kNonceLen);
-            memcpy(instance_->storedNonceB_, payload + kNonceLen, kNonceLen);
+            memcpy(instance_->peers_[idx].lastNonceB, ack->nonceB, kNonceLen);
+            memcpy(instance_->storedNonceB_, ack->nonceB, kNonceLen);
             instance_->storedNonceBValid_ = true;
             ESP_LOGI(TAG, "join success, peer idx=%d", idx);
         } else {

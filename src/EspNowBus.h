@@ -47,6 +47,16 @@ public:
         ControlJoinAck = 4,
     };
 
+    struct JoinReqPayload {
+        uint8_t nonceA[kNonceLen];
+        uint8_t prevToken[kNonceLen]; // responder's nonceB from previous session, or zero
+    };
+
+    struct JoinAckPayload {
+        uint8_t nonceA[kNonceLen];
+        uint8_t nonceB[kNonceLen];
+    };
+
     enum SendStatus : uint8_t {
         Queued,
         SentOk,
