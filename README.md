@@ -5,6 +5,7 @@
 Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. EspNowBus focuses on keeping small networks (≈6 nodes) secure by default while exposing a simple Arduino-style API.
 
 > Status: design phase. See `SPEC.ja.md` for the current specification; interfaces may change as the library is implemented.
+> Current code: basic queue/retry/timeout scaffolding is in place; security (encryption/auth) and JOIN flow are not implemented yet.
 
 ## Highlights
 - Simple API: `begin()`, `sendTo()`, `broadcast()`, `onReceive()`, `onSendResult()`.
