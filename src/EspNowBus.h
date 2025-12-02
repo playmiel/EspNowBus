@@ -66,11 +66,14 @@ public:
         DroppedFull,
         DroppedOldest,
         TooLarge,
-        Retrying
+        Retrying,
+        AppAckTimeout,
+        AppAckReceived
     };
 
     using ReceiveCallback = void (*)(const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry);
     using SendResultCallback = void (*)(const uint8_t* mac, SendStatus status);
+    using AppAckCallback = void (*)(const uint8_t* mac, uint16_t msgId);
 
     bool begin(const Config& cfg);
 
@@ -87,6 +90,7 @@ public:
 
     void onReceive(ReceiveCallback cb);
     void onSendResult(SendResultCallback cb);
+    void onAppAck(AppAckCallback cb);
 
     bool addPeer(const uint8_t mac[6]);
     bool removePeer(const uint8_t mac[6]);
@@ -111,6 +115,10 @@ private:
         PacketType pktType;
         bool isRetry;
         uint8_t mac[6];
+
+        // App-level ACK tracking
+        bool expectAck = false;
+        uint32_t appAckDeadlineMs = 0;
     };
 
     struct PeerInfo {
@@ -128,6 +136,7 @@ private:
     Config config_{};
     ReceiveCallback onReceive_ = nullptr;
     SendResultCallback onSendResult_ = nullptr;
+    AppAckCallback onAppAck_ = nullptr;
 
     struct DerivedKeys {
         uint8_t pmk[16]{};      // Primary Master Key for ESP-NOW encryption

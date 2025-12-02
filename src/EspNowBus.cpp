@@ -163,6 +163,10 @@ void EspNowBus::onSendResult(SendResultCallback cb) {
     onSendResult_ = cb;
 }
 
+void EspNowBus::onAppAck(AppAckCallback cb) {
+    onAppAck_ = cb;
+}
+
 bool EspNowBus::addPeer(const uint8_t mac[6]) {
     if (!mac) return false;
     int idx = findPeerIndex(mac);
@@ -332,6 +336,10 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
     item.pktType = pktType;
     item.isRetry = false;
     memcpy(item.mac, mac, 6);
+    if (config_.enableAppAck && pktType == PacketType::DataUnicast) {
+        item.expectAck = true;
+        item.appAckDeadlineMs = millis() + config_.txTimeoutMs;
+    }
 
     TickType_t ticks;
     if (timeoutMs == kUseDefault) {
@@ -390,6 +398,16 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             return; // duplicate
         }
         if (idx >= 0) instance_->peers_[idx].lastMsgId = id;
+        // Auto app-level ACK
+        if (instance_->config_.enableAppAck) {
+            JoinAckPayload ack{}; // reuse struct for msgId transport
+            ack.nonceA[0] = static_cast<uint8_t>(id & 0xFF);
+            ack.nonceA[1] = static_cast<uint8_t>((id >> 8) & 0xFF);
+            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, &ack, 2, kUseDefault);
+            if (instance_->onAppAck_) {
+                instance_->onAppAck_(mac, id);
+            }
+        }
     } else if (type == PacketType::DataBroadcast) {
         if (idx >= 0 && !instance_->acceptBroadcastSeq(instance_->peers_[idx], id)) {
             return;
