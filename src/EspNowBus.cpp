@@ -272,6 +272,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
     const size_t totalLen = kHeaderSize + (needsAuth ? (4 + kAuthTagLen) : 0) + len;
     if (totalLen > config_.maxPayloadBytes) {
         if (onSendResult_) onSendResult_(mac, SendStatus::TooLarge);
+        ESP_LOGW(TAG, "payload too large (%u > %u)", static_cast<unsigned>(totalLen), config_.maxPayloadBytes);
         return false;
     }
     int16_t bufIdx = allocBuffer();
@@ -422,21 +423,27 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         }
         if (idx < 0) {
             idx = instance_->ensurePeer(mac);
-        }
-        if (idx >= 0 && payloadLen >= static_cast<int>(kNonceLen * 2)) {
-            if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
-                instance_->pendingJoin_ = false; // authenticated responder (keyAuth + nonceA match)
-                memcpy(instance_->peers_[idx].lastNonceB, payload + kNonceLen, kNonceLen);
-                memcpy(instance_->storedNonceB_, payload + kNonceLen, kNonceLen);
-                instance_->storedNonceBValid_ = true;
-                ESP_LOGI(TAG, "join success, peer idx=%d", idx);
-            } else {
-                ESP_LOGW(TAG, "join ack nonce mismatch");
+            if (idx < 0) {
+                ESP_LOGE(TAG, "ensurePeer failed for ack");
+                return;
             }
+        }
+        if (payloadLen < static_cast<int>(kNonceLen * 2)) {
+            ESP_LOGW(TAG, "join ack too short");
+            return;
+        }
+        if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
+            instance_->pendingJoin_ = false; // authenticated responder (keyAuth + nonceA match)
+            memcpy(instance_->peers_[idx].lastNonceB, payload + kNonceLen, kNonceLen);
+            memcpy(instance_->storedNonceB_, payload + kNonceLen, kNonceLen);
+            instance_->storedNonceBValid_ = true;
+            ESP_LOGI(TAG, "join success, peer idx=%d", idx);
+        } else {
+            ESP_LOGW(TAG, "join ack nonce mismatch");
         }
         return;
     } else {
-        // Control packets not yet handled
+        ESP_LOGW(TAG, "unknown packet type=%u", type);
         return;
     }
     if (instance_->onReceive_) {
