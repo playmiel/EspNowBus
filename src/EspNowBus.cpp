@@ -798,12 +798,9 @@ bool EspNowBus::deriveKeys(const char *groupName)
     uint8_t secret[32];
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
-    if (mbedtls_sha256_starts_ret(&ctx, 0) != 0)
-        return false;
-    if (mbedtls_sha256_update_ret(&ctx, reinterpret_cast<const unsigned char *>(groupName), strlen(groupName)) != 0)
-        return false;
-    if (mbedtls_sha256_finish_ret(&ctx, secret) != 0)
-        return false;
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, reinterpret_cast<const unsigned char *>(groupName), strlen(groupName));
+    mbedtls_sha256_finish(&ctx, secret);
     mbedtls_sha256_free(&ctx);
 
     auto derive = [&](const char *label, uint8_t *out, size_t outLen)
@@ -811,10 +808,10 @@ bool EspNowBus::deriveKeys(const char *groupName)
         uint8_t digest[32];
         mbedtls_sha256_context c;
         mbedtls_sha256_init(&c);
-        mbedtls_sha256_starts_ret(&c, 0);
-        mbedtls_sha256_update_ret(&c, reinterpret_cast<const unsigned char *>(label), strlen(label));
-        mbedtls_sha256_update_ret(&c, secret, sizeof(secret));
-        mbedtls_sha256_finish_ret(&c, digest);
+        mbedtls_sha256_starts(&c, 0);
+        mbedtls_sha256_update(&c, reinterpret_cast<const unsigned char *>(label), strlen(label));
+        mbedtls_sha256_update(&c, secret, sizeof(secret));
+        mbedtls_sha256_finish(&c, digest);
         memcpy(out, digest, outLen);
         mbedtls_sha256_free(&c);
     };
