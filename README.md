@@ -16,7 +16,7 @@ Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. 
 - **Packet types**: `DataUnicast`, `DataBroadcast`, `PeerAuthHello`, `PeerAuthResponse`, `ControlJoinReq`, `ControlJoinAck`.
 - **Security**: Broadcast packets carry `groupId`, `seq`, and `authTag`; join uses challenge/response; encryption is recommended.
 
-## Quick start (planned)
+## Quick start
 ```cpp
 #include <EspNowBus.h>
 
@@ -50,7 +50,7 @@ void loop() {
 }
 ```
 
-## Configuration (spec)
+## Configuration
 `EspNowBus::Config`
 - `groupName` (required): common group identifier used to derive keys.
 - `useEncryption` (default `true`): ESP-NOW encryption; max 6 peers when enabled.
@@ -71,7 +71,6 @@ void loop() {
 - `replayWindowBcast` (default `64`): broadcast replay window (set 0 to disable).
 - `replayWindowJoin` (default `64`): JOIN replay window（how many JOIN seq to remember; set 0 to disable replay drop). Helps avoid processing duplicate JOINs during bursts or retries. Values >64 are clamped internally (64-bit window).
 - `maxAckFailures`/`failureWindowMs`/`rejoinAfterPurge`: optional auto-purge on consecutive `AppAckTimeout`/`SendFailed` (0 disables), with optional auto re-JOIN.
-- Optional callbacks: `onJoinEvent(mac, accepted, isAck)` and `onPeerPurged(mac)` for JOIN handling and purge notifications.
 
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  
@@ -111,8 +110,11 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout`.
 
 ## Callbacks
-- `onReceive(cb)`: called for accepted unicast and authenticated broadcast packets.
-- `onSendResult(cb)`: delivery result per queued packet.
+- `onReceive(cb)`: accepted unicast and authenticated broadcast packets.
+- `onSendResult(cb)`: delivery result per queued packet (`AppAckReceived`/`AppAckTimeout` when app-ACK is enabled).
+- `onAppAck(cb)`: invoked when an AppAck is received (even if not in-flight).
+- `onJoinEvent(mac, accepted, isAck)`: JOIN accept/reject and Ack handling.
+- `onPeerPurged(mac)`: notified when a peer is auto-purged due to consecutive failures.
 
 ## Documentation
 - Detailed spec (Japanese): `SPEC.ja.md`

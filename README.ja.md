@@ -16,7 +16,7 @@ ESP32 / Arduino 向けの軽量な ESP-NOW グループメッセージバス。�
 - **パケット種別**: `DataUnicast`, `DataBroadcast`, `PeerAuthHello`, `PeerAuthResponse`, `ControlJoinReq`, `ControlJoinAck`。
 - **セキュリティ**: Broadcast には `groupId`・`seq`・`authTag` を付与し、JOIN はチャレンジレスポンスで認証。暗号化利用を推奨。
 
-## クイックスタート（予定）
+## クイックスタート
 ```cpp
 #include <EspNowBus.h>
 
@@ -50,7 +50,7 @@ void loop() {
 }
 ```
 
-## Config 概要（仕様ベース）
+## Config 概要
 - `groupName` (必須): グループ識別子。鍵・ID 生成の元になる。
 - `useEncryption` (既定 true): ESP-NOW 暗号化。最大 peer 数は約 6。
 - `enablePeerAuth` (既定 true): JOIN 時のチャレンジレスポンス。
@@ -70,7 +70,6 @@ void loop() {
 - `replayWindowBcast` (既定 64): Broadcast のリプレイ窓（0 で無効）。
 - `replayWindowJoin` (既定 64): JOIN のリプレイ窓（最近の JOIN seq を何件覚えて重複を落とすか。0 で無効）。同時多発の JOIN やリトライ時の重複処理を避ける用途。内部は 64bit 窓なので 64 を超える値は 64 に丸められます。
 - `maxAckFailures` / `failureWindowMs` / `rejoinAfterPurge`: 連続 `AppAckTimeout` / `SendFailed` が閾値を超えたピアを自動でパージ（0 で無効）。`rejoinAfterPurge=true` ならパージ後に再JOIN要求を送る。
-- 任意コールバック: JOIN 受理/拒否/成功時の `onJoinEvent(mac, accepted, isAck)`, パージ通知の `onPeerPurged(mac)`。
 
 ### 送信ごとのタイムアウト上書き
 `sendTo` / `sendToAllPeers` / `broadcast` に任意の `timeoutMs` を指定可能。  
@@ -112,6 +111,8 @@ void loop() {
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。
 - `onSendResult(cb)`: キュー投入ごとの送信結果を通知。
+- `onJoinEvent(mac, accepted, isAck)`: JOIN 受理/拒否/成功時
+- `onPeerPurged(mac)`: 自動パージ通知
 
 ## ドキュメント
 - 仕様詳細: `SPEC.ja.md`
