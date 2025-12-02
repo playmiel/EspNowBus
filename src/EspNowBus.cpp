@@ -470,7 +470,6 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         if (payloadLen < static_cast<int>(sizeof(AppAckPayload))) return;
         const AppAckPayload* ack = reinterpret_cast<const AppAckPayload*>(payload);
         if (instance_->txInFlight_ && instance_->currentTx_.expectAck && ack->msgId == instance_->currentTx_.msgId) {
-            instance_->waitingAppAckId_ = 0;
             if (instance_->onSendResult_) instance_->onSendResult_(mac, SendStatus::AppAckReceived);
             instance_->freeBuffer(instance_->currentTx_.bufferIndex);
             instance_->txInFlight_ = false;
@@ -556,7 +555,6 @@ bool EspNowBus::sendNextIfIdle(TickType_t waitTicks) {
         retryCount_ = 0;
         txInFlight_ = startSend(item);
         txDeadlineMs_ = millis() + config_.txTimeoutMs;
-        waitingAppAckId_ = item.expectAck ? item.msgId : 0;
         if (!txInFlight_) {
             freeBuffer(item.bufferIndex);
             if (onSendResult_) onSendResult_(item.mac, SendStatus::SendFailed);
