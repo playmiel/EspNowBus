@@ -114,11 +114,6 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - `onReceive(cb)`: called for accepted unicast and authenticated broadcast packets.
 - `onSendResult(cb)`: delivery result per queued packet.
 
-## Roadmap
-- Finalize key derivation, packet layout, and replay windows (see `SPEC.ja.md` gaps).
-- Implement core library and minimal examples for Arduino IDE and PlatformIO.
-- Add tests for packet validation, join handshake, and queue/backoff behavior.
-
 ## Documentation
 - Detailed spec (Japanese): `SPEC.ja.md`
 - Japanese README: `README.ja.md`
