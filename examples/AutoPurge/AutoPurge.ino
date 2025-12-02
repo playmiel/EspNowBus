@@ -1,7 +1,7 @@
 #include <EspNowBus.h>
 
-// en: Demonstrate auto-purge on consecutive AppAckTimeout/SendFailed.
-// ja: AppAckTimeout/SendFailed が続いたピアを自動パージするデモ。
+// en: Demonstrate auto-purge on consecutive AppAckTimeout/SendFailed, with callbacks for join/purge events.
+// ja: AppAckTimeout/SendFailed 連続時の自動パージと、JOIN/パージのコールバック例。
 
 EspNowBus bus;
 
@@ -13,6 +13,22 @@ void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetr
 void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
 {
   Serial.printf("Send status=%d\n", (int)status);
+}
+
+void onJoinEventCb(const uint8_t mac[6], bool accepted, bool isAck)
+{
+  // en: Report join events (accepted/denied, request vs ack)
+  // ja: JOIN イベントを表示（受理/拒否、ReqかAckか）
+  Serial.printf("JoinEvent mac=%02X:%02X:%02X:%02X:%02X:%02X accepted=%d isAck=%d\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], accepted, isAck);
+}
+
+void onPurgeEventCb(const uint8_t mac[6])
+{
+  // en: Notified when a peer is auto-purged
+  // ja: ピアが自動パージされたときに通知
+  Serial.printf("Purged mac=%02X:%02X:%02X:%02X:%02X:%02X\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
 void setup()
@@ -28,6 +44,8 @@ void setup()
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);
+  bus.onJoinEvent(onJoinEventCb);
+  bus.onPeerPurged(onPurgeEventCb);
 
   if (!bus.begin(cfg))
   {
