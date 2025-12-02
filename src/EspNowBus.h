@@ -37,6 +37,7 @@ public:
     static constexpr uint16_t kMaxPayloadLegacy  = 250;
     static constexpr uint8_t  kAuthTagLen = 16;
     static constexpr uint16_t kReplayWindow = 64;
+    static constexpr uint8_t  kNonceLen = 8;
 
     enum PacketType : uint8_t {
         DataUnicast = 1,

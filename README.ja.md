@@ -86,6 +86,7 @@ void loop() {
 - 送信完了 CB では共有状態を触らず、FreeRTOS のタスク通知（`xTaskNotifyFromISR`）で送信タスクに結果を渡し、送信タスク側でフラグを下ろして `onSendResult` を実行する。
 - 簡易 JOIN フロー: `sendRegistrationRequest()` で ControlJoinReq をブロードキャストし、受け入れ可能ノードが peer 登録して ControlJoinAck をユニキャスト返信（認証・暗号化は未実装）。
 - Broadcast / Control パケットには groupId と HMAC(16B) を付与（keyBcast または keyAuth を使用）。受信側は検証し、誤りを破棄。Broadcast は peer ごとに 64 エントリのスライド窓でリプレイ防止。
+- JOIN パケットには 8 バイトの nonce を含め、Ack でエコー。完全なチャレンジレスポンスは今後の課題。
 
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。

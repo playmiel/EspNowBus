@@ -183,8 +183,11 @@ void EspNowBus::setAcceptRegistration(bool enable) {
 
 bool EspNowBus::sendRegistrationRequest() {
     static const uint8_t bcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-    const uint8_t dummy = 0;
-    return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, &dummy, sizeof(dummy), kUseDefault);
+    uint8_t payload[kNonceLen];
+    uint32_t t = millis();
+    memcpy(payload, &t, sizeof(t));
+    esp_fill_random(payload + sizeof(t), kNonceLen - sizeof(t));
+    return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, payload, sizeof(payload), kUseDefault);
 }
 
 bool EspNowBus::initPeers(const uint8_t peers[][6], size_t count) {
@@ -262,7 +265,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
 
     uint16_t msgId = 0;
     uint16_t seq = 0;
-    if (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq) {
+    if (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck) {
         seq = ++broadcastSeq_;
     } else {
         msgId = ++msgCounter_;
@@ -370,17 +373,9 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         // Add peer and reply with Ack
         if (idx >= 0 && instance_->config_.canAcceptRegistrations) {
             instance_->addPeer(mac);
-            if (payloadLen >= 4) {
-                uint32_t nonce = static_cast<uint32_t>(payload[0]) |
-                                 (static_cast<uint32_t>(payload[1]) << 8) |
-                                 (static_cast<uint32_t>(payload[2]) << 16) |
-                                 (static_cast<uint32_t>(payload[3]) << 24);
-                uint8_t ackPayload[4];
-                ackPayload[0] = payload[0];
-                ackPayload[1] = payload[1];
-                ackPayload[2] = payload[2];
-                ackPayload[3] = payload[3];
-                (void)nonce;
+            if (payloadLen >= kNonceLen) {
+                uint8_t ackPayload[kNonceLen];
+                memcpy(ackPayload, payload, kNonceLen);
                 instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
             }
         }
