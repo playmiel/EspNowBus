@@ -72,6 +72,7 @@ void loop() {
 - ISR 非対応: `sendTo`/`broadcast` は ISR から呼べない（ブロッキング API を使用するため）。
 - `replayWindowBcast` (既定 64): Broadcast のリプレイ窓（0 で無効）。
 - `replayWindowJoin` (既定 64): JOIN のリプレイ窓（最近の JOIN seq を何件覚えて重複を落とすか。0 で無効）。同時多発の JOIN やリトライ時の重複処理を避ける用途。内部は 64bit 窓なので 64 を超える値は 64 に丸められます。
+- `maxAckFailures` / `failureWindowMs` / `rejoinAfterPurge`: 連続 `AppAckTimeout` / `SendFailed` が閾値を超えたピアを自動でパージ（0 で無効）。`rejoinAfterPurge=true` ならパージ後に再JOIN要求を送る。
 
 ### 送信ごとのタイムアウト上書き
 `sendTo` / `sendToAllPeers` / `broadcast` に任意の `timeoutMs` を指定可能。  

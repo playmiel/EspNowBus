@@ -182,6 +182,11 @@ struct Config {
     // リプレイ窓サイズ（可変設定）
     uint16_t replayWindowBcast = 64;        // Broadcast 用
     uint16_t replayWindowJoin  = 64;        // JOIN 用（内部窓は64まで）
+
+    // 連続失敗時の自動パージ設定（デフォルト無効）
+    uint8_t  maxAckFailures    = 0;         // 0 で無効。連続 AppAckTimeout/SendFailed がこの回数を超えたらパージ
+    uint32_t failureWindowMs   = 30000;     // 連続失敗をカウントする時間窓
+    bool     rejoinAfterPurge  = false;     // パージ後に sendRegistrationRequest を自動送信するか
 };
 ```
 
@@ -271,6 +276,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
   - 物理 ACK が無くても論理 ACK を受け取れた場合は「到達成功」とみなしつつ警告ログを残す  
   - 物理 ACK だけで論理 ACK が無い場合は「未達/不明」としてリトライまたは再JOIN を行う
   - app-ACK 有効のユニキャストでは `AppAckReceived` を最終成功、`AppAckTimeout` を失敗として通知し、`SentOk` は app-ACK 無効時のみの完了通知（物理 ACK は完了判定に使わない）
+- 連続失敗時の自動パージ（オプション）: `maxAckFailures>0` の場合、`failureWindowMs` 内に連続で `AppAckTimeout`/`SendFailed` がしきい値を超えたピアを `removePeer`。`rejoinAfterPurge=true` ならパージ後に `sendRegistrationRequest()` を自動送信する
   - onSendResult の完了は AppAckReceived（論理 ACK）を以て成功とし、AppAckTimeout で失敗扱い（物理送信成功だけでは完了としない）
 
 ### 8.2 受信
