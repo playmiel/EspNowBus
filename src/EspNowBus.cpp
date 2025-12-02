@@ -396,10 +396,8 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
 
     int idx = instance_->ensurePeer(mac);
     if (type == PacketType::DataUnicast) {
-        if (idx >= 0 && instance_->peers_[idx].lastMsgId == id) {
-            return; // duplicate
-        }
-        if (idx >= 0) instance_->peers_[idx].lastMsgId = id;
+        bool duplicate = (idx >= 0 && instance_->peers_[idx].lastMsgId == id);
+        if (idx >= 0 && !duplicate) instance_->peers_[idx].lastMsgId = id;
         // Auto app-level ACK
         if (instance_->config_.enableAppAck) {
             AppAckPayload ack{};
@@ -409,6 +407,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 instance_->onAppAck_(mac, id);
             }
         }
+        if (duplicate) return; // duplicate payload is dropped
     } else if (type == PacketType::DataBroadcast) {
         if (idx >= 0 && !instance_->acceptBroadcastSeq(instance_->peers_[idx], id)) {
             return;

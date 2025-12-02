@@ -105,6 +105,7 @@ groupSecret → groupId / keyAuth / keyBcast
 - `DataBroadcast`  
 - `PeerAuthHello` / `PeerAuthResponse`  
 - `ControlJoinReq` / `ControlJoinAck`  
+- `ControlAppAck`（論理 ACK 用）
 
 ### 6.3 種別別の振る舞い
 #### DataUnicast
@@ -122,6 +123,11 @@ groupSecret → groupId / keyAuth / keyBcast
 #### ControlJoinReq / Ack
 - JOIN / 再JOIN
 - 認証は keyAuth を使用
+
+#### ControlAppAck
+- ユニキャストの論理 ACK
+- `[BaseHeader(id=msgId)][groupId][authTag][AppAckPayload(msgId)]`
+- HMAC は keyAuth を使用
 
 ---
 
@@ -242,6 +248,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - アプリ層 ACK（論理 ACK）: `enableAppAck=true` の場合、ユニキャスト受信時に msgId を含む Ack パケットを自動返信し、送信側は Ack 未達ならリトライ/再JOIN を行う  
   - 物理 ACK が無くても論理 ACK を受け取れた場合は「到達成功」とみなしつつ警告ログを残す  
   - 物理 ACK だけで論理 ACK が無い場合は「未達/不明」としてリトライまたは再JOIN を行う
+  - onSendResult の完了は AppAckReceived（論理 ACK）を以て成功とし、AppAckTimeout で失敗扱い（物理送信成功だけでは完了としない）
 
 ### 8.2 受信
 - BaseHeader → PacketType で分岐
@@ -269,7 +276,7 @@ ControlJoinReq をブロードキャスト（groupId + authTag）
 - Broadcast: `seq` の再送は authTag 検証後、リプレイ窓で破棄。`flags.isRetry` はデバッグ用フラグとして利用  
 - リプレイ窓幅は 16〜64 程度を想定し、オーバーフロー時も最も近い未来方向のみを受理する簡易窓で実装
 - 論理 ACK: 受信側が重複と判定して UserPayload を渡さなかった場合でも、`enableAppAck=true` なら msgId を含む Ack を返信する（送信側の再送抑止のため）
-- onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`（途中経過を通知したい場合）などを固定列挙で定義
+- onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout` を固定列挙で定義
 
 ---
 
