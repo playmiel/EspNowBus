@@ -87,6 +87,13 @@ void loop() {
 - キューの状況確認: `sendQueueFree()` / `sendQueueSize()` で空きスロット数と投入済み件数を取得可能。
 - ピア参照: `peerCount()` と `getPeer(index, macOut)` で登録済みピアを列挙できる。
 
+## サンプルとユースケース
+- `examples/BroadcastAndAck`: 定期ブロードキャスト＋論理ACK。全体への通知で到達確認を取りたい場合に。
+- `examples/JoinAndUnicast`: JOIN 後、ランダムなピアへユニキャスト。再起動後のピア再発見（定期JOIN）と到達確認の例。
+- `examples/SendToAllPeers`: `sendToAllPeers` で全ピアにユニキャスト同報。ブロードキャストより重いが、暗号化＋HMAC＋AppAck による到達確認を重視する用途に。
+- `examples/MasterSlave/Master` / `.../Slave`: マスタは登録を受け付け、スレーブ（センサ）は受け付けない構成。スレーブが定期JOINでマスタを探し、`sendToAllPeers` でデータを送る（マルチマスタも可）。
+- `examples/AutoPurge`: 連続 `AppAckTimeout`/`SendFailed` で自動パージし、JOIN/パージのコールバックを表示。リンク不安定な環境での自動復旧の例。
+
 ### リトライと重複扱い
 - 送信タスクは単一の送信スロットとフラグを持ち、ESP-NOW 送信完了 CB でフラグを下ろして `onSendResult` を通知。
 - フラグが立ったまま `txTimeoutMs` を超えたらタイムアウト扱い→同じ msgId/seq で `maxRetries` 回までリトライ（`retryDelayMs` 既定 0 で即再送）。

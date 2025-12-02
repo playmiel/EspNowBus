@@ -88,6 +88,13 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Introspection: `sendQueueFree()`/`sendQueueSize()` return remaining slots and enqueued count.
 - Peer introspection: `peerCount()` and `getPeer(index, macOut)` allow enumerating known peers.
 
+## Examples (use-cases)
+- `examples/BroadcastAndAck`: Periodic broadcast with app-level ACK. Use when you need group-wide updates but still want logical delivery checks (each listener returns AppAck).
+- `examples/JoinAndUnicast`: Nodes JOIN and then unicast to a random peer. Shows how to recover peers after reboot (periodic JOIN) and confirms delivery with AppAck.
+- `examples/SendToAllPeers`: Group-wide message via `sendToAllPeers` (per-peer unicast). Heavier than broadcast, but benefits from encryption/keyAuth and AppAck delivery assurance.
+- `examples/MasterSlave/Master`, `.../Slave`: Master accepts registrations; slave (sensors) does not. Slaves hunt for masters (periodic JOIN) and push data with `sendToAllPeers`, suitable for sensor→gateway with multiple masters.
+- `examples/AutoPurge`: Demonstrates auto-purge on consecutive AppAckTimeout/SendFailed and uses callbacks (`onJoinEvent`, `onPeerPurged`) to observe state changes. Useful for unstable links where peers drop out and should be re-JOINed automatically.
+
 ### Retries and duplicate handling
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
 - If the flag stays set longer than `txTimeoutMs`, treat as timeout and retry (or fail) using the same message ID/sequence; `retryDelayMs` defaults to 0 (immediate retry).
