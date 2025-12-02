@@ -187,6 +187,8 @@ private:
     ReceiveCallback onReceive_ = nullptr;
     SendResultCallback onSendResult_ = nullptr;
     AppAckCallback onAppAck_ = nullptr;
+    JoinEventCb onJoinEvent_ = nullptr;
+    PurgeEventCb onPeerPurged_ = nullptr;
 
     struct DerivedKeys
     {

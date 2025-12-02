@@ -218,12 +218,12 @@ void EspNowBus::onAppAck(AppAckCallback cb)
 
 void EspNowBus::onJoinEvent(JoinEventCb cb)
 {
-    config_.onJoinEvent = cb;
+    onJoinEvent_ = cb;
 }
 
 void EspNowBus::onPeerPurged(PurgeEventCb cb)
 {
-    config_.onPeerPurged = cb;
+    onPeerPurged_ = cb;
 }
 
 bool EspNowBus::addPeer(const uint8_t mac[6])
@@ -626,8 +626,8 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
                 return;
             }
             instance_->addPeer(mac);
-            if (instance_->config_.onJoinEvent)
-                instance_->config_.onJoinEvent(mac, true, false);
+            if (instance_->onJoinEvent_)
+                instance_->onJoinEvent_(mac, true, false);
             if (payloadLen < static_cast<int>(sizeof(JoinReqPayload)))
             {
                 ESP_LOGW(TAG, "join req too short");
@@ -679,14 +679,14 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
             memcpy(instance_->storedNonceB_, ack->nonceB, kNonceLen);
             instance_->storedNonceBValid_ = true;
             ESP_LOGI(TAG, "join success, peer idx=%d", idx);
-            if (instance_->config_.onJoinEvent)
-                instance_->config_.onJoinEvent(mac, true, true);
+            if (instance_->onJoinEvent_)
+                instance_->onJoinEvent_(mac, true, true);
         }
         else
         {
             ESP_LOGW(TAG, "join ack nonce mismatch");
-            if (instance_->config_.onJoinEvent)
-                instance_->config_.onJoinEvent(mac, false, true);
+            if (instance_->onJoinEvent_)
+                instance_->onJoinEvent_(mac, false, true);
         }
         return;
     }
@@ -1018,8 +1018,8 @@ void EspNowBus::purgePeer(int idx)
     memcpy(mac, peers_[idx].mac, 6);
     esp_now_del_peer(peers_[idx].mac);
     peers_[idx].inUse = false;
-    if (config_.onPeerPurged)
-        config_.onPeerPurged(mac);
+    if (onPeerPurged_)
+        onPeerPurged_(mac);
 }
 
 bool EspNowBus::acceptBroadcastSeq(PeerInfo &peer, uint16_t seq)
