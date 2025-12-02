@@ -36,6 +36,13 @@ public:
     static constexpr uint16_t kMaxPayloadDefault = 1470;
     static constexpr uint16_t kMaxPayloadLegacy  = 250;
 
+    enum PacketType : uint8_t {
+        DataUnicast = 1,
+        DataBroadcast = 2,
+        ControlJoinReq = 3,
+        ControlJoinAck = 4,
+    };
+
     enum SendStatus : uint8_t {
         Queued,
         SentOk,
@@ -113,7 +120,7 @@ private:
 
     static constexpr uint8_t kMagic = 0xEB;
     static constexpr uint8_t kVersion = 1;
-    static constexpr size_t kHeaderSize = 6; // magic(1)+ver(1)+type(1)+flags(1)+msgId(2) [broadcast uses seq field in msgId slot]
+    static constexpr size_t kHeaderSize = 6; // magic(1)+ver(1)+type(1)+flags(1)+id(2: msgId or seq)
 
     uint16_t msgCounter_ = 0;
     uint16_t broadcastSeq_ = 0;

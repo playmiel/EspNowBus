@@ -91,11 +91,11 @@ void EspNowBus::end() {
         sendQueue_ = nullptr;
     }
     if (payloadPool_) {
-        free(payloadPool_);
+        heap_caps_free(payloadPool_);
         payloadPool_ = nullptr;
     }
     if (bufferUsed_) {
-        free(bufferUsed_);
+        heap_caps_free(bufferUsed_);
         bufferUsed_ = nullptr;
     }
     instance_ = nullptr;
@@ -169,8 +169,9 @@ void EspNowBus::setAcceptRegistration(bool enable) {
 }
 
 bool EspNowBus::sendRegistrationRequest() {
-    // TODO: implement JOIN control packet
-    return false;
+    static const uint8_t bcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    const char payload[] = "join"; // placeholder control payload
+    return enqueueCommon(Dest::Broadcast, bcast, payload, sizeof(payload), kUseDefault);
 }
 
 // --- internal helpers ---
@@ -242,7 +243,7 @@ bool EspNowBus::enqueueCommon(Dest dest, const uint8_t* mac, const void* data, s
     uint8_t* buf = bufferPtr(static_cast<uint16_t>(bufIdx));
     buf[0] = kMagic;
     buf[1] = kVersion;
-    buf[2] = (dest == Dest::Broadcast) ? 2 : 1; // PacketType simple enum
+    buf[2] = (dest == Dest::Broadcast) ? PacketType::DataBroadcast : PacketType::DataUnicast;
     buf[3] = 0; // flags
     uint16_t idField = (dest == Dest::Broadcast) ? seq : msgId;
     buf[4] = static_cast<uint8_t>(idField & 0xFF);
@@ -298,12 +299,12 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
     int payloadLen = len - static_cast<int>(kHeaderSize);
 
     int idx = instance_->ensurePeer(mac);
-    if (type == 1) { // Unicast
+    if (type == PacketType::DataUnicast) {
         if (idx >= 0 && instance_->peers_[idx].lastMsgId == id) {
             return; // duplicate
         }
         if (idx >= 0) instance_->peers_[idx].lastMsgId = id;
-    } else if (type == 2) { // Broadcast
+    } else if (type == PacketType::DataBroadcast) {
         if (idx >= 0 && instance_->peers_[idx].lastBroadcastSeq == id) {
             return;
         }
