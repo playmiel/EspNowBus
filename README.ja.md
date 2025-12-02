@@ -110,7 +110,8 @@ void loop() {
 
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。
-- `onSendResult(cb)`: キュー投入ごとの送信結果を通知。
+- `onSendResult(cb)`: キュー投入ごとの送信結果を通知（AppAck 有効時は `AppAckReceived`/`AppAckTimeout` で完了通知）。
+- `onAppAck(cb)`: AppAck を受信したときに呼ばれる（in-flight でなくても呼ばれる）。
 - `onJoinEvent(mac, accepted, isAck)`: JOIN 受理/拒否/成功時
 - `onPeerPurged(mac)`: 自動パージ通知
 
