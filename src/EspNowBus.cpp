@@ -216,6 +216,16 @@ bool EspNowBus::sendRegistrationRequest() {
     return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, &payload, sizeof(payload), kUseDefault);
 }
 
+uint16_t EspNowBus::sendQueueFree() const {
+    if (!sendQueue_) return 0;
+    return static_cast<uint16_t>(uxQueueSpacesAvailable(sendQueue_));
+}
+
+uint16_t EspNowBus::sendQueueSize() const {
+    if (!sendQueue_) return 0;
+    return static_cast<uint16_t>(uxQueueMessagesWaiting(sendQueue_));
+}
+
 bool EspNowBus::initPeers(const uint8_t peers[][6], size_t count) {
     bool ok = true;
     for (size_t i = 0; i < count; ++i) {

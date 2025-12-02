@@ -105,6 +105,10 @@ public:
 
     bool sendRegistrationRequest();
 
+    // Queue introspection
+    uint16_t sendQueueFree() const;
+    uint16_t sendQueueSize() const;
+
     // Pair management (plain, no auth yet)
     bool initPeers(const uint8_t peers[][6], size_t count);
 
