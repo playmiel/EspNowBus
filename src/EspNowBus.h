@@ -39,6 +39,7 @@ public:
     static constexpr uint16_t kReplayWindow = 64;
     static constexpr uint8_t  kNonceLen = 8;
     static constexpr uint16_t kNonceWindow = 128;
+    static constexpr uint32_t kReseedIntervalMs = 60 * 60 * 1000; // periodic key reseed (if desired)
 
     enum PacketType : uint8_t {
         DataUnicast = 1,

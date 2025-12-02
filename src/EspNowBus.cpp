@@ -53,6 +53,10 @@ bool EspNowBus::begin(const Config& cfg) {
     esp_now_register_send_cb(&EspNowBus::onSendStatic);
     esp_now_register_recv_cb(&EspNowBus::onReceiveStatic);
 
+    // seed RNG periodically if needed (one-time here)
+    esp_fill_random(&msgCounter_, sizeof(msgCounter_));
+    esp_fill_random(&broadcastSeq_, sizeof(broadcastSeq_));
+
     // Ensure broadcast peer exists
     const uint8_t broadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
     esp_now_peer_info_t bcastPeer = makePeerInfo(broadcastMac, false, nullptr);
