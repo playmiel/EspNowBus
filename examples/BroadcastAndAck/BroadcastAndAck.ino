@@ -19,6 +19,13 @@ void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
   Serial.printf("Send status=%d\n", (int)status);
 }
 
+void onAppAck(const uint8_t *mac, uint16_t msgId)
+{
+  // en: Logical ACK received
+  // ja: 論理ACK（基本は onSendResult で完了判定）を受信（基本は onSendResult で完了判定）
+  Serial.printf("AppAck msgId=%u\n", msgId);
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -29,6 +36,7 @@ void setup()
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);
+  bus.onAppAck(onAppAck);
 
   if (!bus.begin(cfg))
   {

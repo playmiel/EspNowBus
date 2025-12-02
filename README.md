@@ -111,8 +111,8 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 
 ## Callbacks
 - `onReceive(cb)`: accepted unicast and authenticated broadcast packets.
-- `onSendResult(cb)`: delivery result per queued packet (`AppAckReceived`/`AppAckTimeout` when app-ACK is enabled).
-- `onAppAck(cb)`: invoked when an AppAck is received (even if not in-flight).
+- `onSendResult(cb)`: delivery result per queued packet. With app-ACK enabled, success/timeout are `AppAckReceived`/`AppAckTimeout` (use this for completion).
+- `onAppAck(cb)`: called for every AppAck received (even if not in-flight); typically optional debugging/telemetry.
 - `onJoinEvent(mac, accepted, isAck)`: JOIN accept/reject and Ack handling.
 - `onPeerPurged(mac)`: notified when a peer is auto-purged due to consecutive failures.
 

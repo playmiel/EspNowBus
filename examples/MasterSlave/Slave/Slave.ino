@@ -19,6 +19,11 @@ void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
   Serial.printf("Send status=%d\n", (int)status);
 }
 
+void onAppAck(const uint8_t *mac, uint16_t msgId)
+{
+  Serial.printf("AppAck msgId=%u\n", msgId);
+}
+
 void setup()
 {
   Serial.begin(115200);

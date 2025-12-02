@@ -38,9 +38,9 @@ void setup()
 
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-purge";
-  cfg.maxAckFailures = 3;      // en/ja: 3回連続の失敗でパージ
-  cfg.failureWindowMs = 20000; // en/ja: 20秒窓
-  cfg.rejoinAfterPurge = true; // en/ja: パージ後に再JOIN要求
+  cfg.maxAckFailures = 3;      // en: 3 consecutive failures to purge / ja: 3回連続の失敗でパージ
+  cfg.failureWindowMs = 20000; // en: Reset count if no communication for over 20 seconds / ja: 最後の通信から20秒以上経過していたらカウントリセット
+  cfg.rejoinAfterPurge = true; // en: Send registration request after purge / ja: パージ後に再JOIN要求
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);
