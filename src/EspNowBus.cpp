@@ -409,8 +409,9 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             const JoinReqPayload* req = reinterpret_cast<const JoinReqPayload*>(payload);
             bool resumed = memcmp(req->prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
             if (instance_->storedNonceBValid_ && !resumed) {
-                ESP_LOGW(TAG, "join prevToken mismatch");
-                return;
+                ESP_LOGW(TAG, "join prevToken mismatch, treating as fresh");
+                memset(instance_->peers_[idx].lastNonceB, 0, kNonceLen);
+                storedNonceBValid_ = false;
             }
             JoinAckPayload ackPayload{};
             memcpy(ackPayload.nonceA, req->nonceA, kNonceLen); // echo nonceA
