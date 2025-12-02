@@ -21,6 +21,8 @@ void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
 
 void onAppAck(const uint8_t *mac, uint16_t msgId)
 {
+  // en: Logical ACK
+  // ja: 論理ACK（基本は onSendResult で完了判定）
   Serial.printf("AppAck msgId=%u\n", msgId);
 }
 
@@ -31,7 +33,7 @@ void setup()
 
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-master";    // en: must match masters / ja: マスターと同じグループ名
-  cfg.canAcceptRegistrations = false; // en/ja: スレーブは登録受け入れなし
+  cfg.canAcceptRegistrations = false; // en: do not accept registrations / ja: スレーブは登録受け入れなし
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);

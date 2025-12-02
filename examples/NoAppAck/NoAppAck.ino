@@ -7,6 +7,8 @@ EspNowBus bus;
 
 void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry)
 {
+  // en: Print sender and payload; app-ACK is auto-sent when enabled.
+  // ja: 送信元とペイロードを表示。AppAck は有効時に自動返信。
   Serial.printf("RX len=%u retry=%d\n", (unsigned)len, wasRetry);
 }
 
@@ -31,11 +33,11 @@ void setup()
 
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-noappack";
-  cfg.enableAppAck = false; // en/ja: disable app-level ACK
+  cfg.enableAppAck = false; // en: disable app-level ACK / ja: 論理ACK無効
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);
-  bus.onAppAck(onAppAck); // en/ja: set, but won't be called
+  bus.onAppAck(onAppAck); // en: set, but won't be called / ja: 設定するが呼ばれない
 
   if (!bus.begin(cfg))
   {

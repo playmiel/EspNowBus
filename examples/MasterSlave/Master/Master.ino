@@ -7,8 +7,8 @@ EspNowBus bus;
 
 void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry)
 {
-  // en: Print sender and payload
-  // ja: 送信元とペイロードを表示
+  // en: Print sender and payload; app-ACK is auto-sent when enabled.
+  // ja: 送信元とペイロードを表示。AppAck は有効時に自動返信。
   Serial.printf("RX from %02X:%02X:%02X:%02X:%02X:%02X len=%u retry=%d\n",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], (unsigned)len, wasRetry);
 }
@@ -22,6 +22,8 @@ void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
 
 void onAppAck(const uint8_t *mac, uint16_t msgId)
 {
+  // en: Logical ACK
+  // ja: 論理ACK（基本は onSendResult で完了判定）
   Serial.printf("AppAck msgId=%u\n", msgId);
 }
 
