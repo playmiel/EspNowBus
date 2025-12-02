@@ -339,6 +339,8 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
     if (config_.enableAppAck && pktType == PacketType::DataUnicast) {
         item.expectAck = true;
         item.appAckDeadlineMs = millis() + config_.txTimeoutMs;
+    } else if (pktType == PacketType::ControlAppAck) {
+        item.expectAck = false;
     }
 
     TickType_t ticks;
@@ -400,10 +402,9 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         if (idx >= 0) instance_->peers_[idx].lastMsgId = id;
         // Auto app-level ACK
         if (instance_->config_.enableAppAck) {
-            JoinAckPayload ack{}; // reuse struct for msgId transport
-            ack.nonceA[0] = static_cast<uint8_t>(id & 0xFF);
-            ack.nonceA[1] = static_cast<uint8_t>((id >> 8) & 0xFF);
-            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, &ack, 2, kUseDefault);
+            AppAckPayload ack{};
+            ack.msgId = id;
+            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlAppAck, mac, &ack, sizeof(ack), kUseDefault);
             if (instance_->onAppAck_) {
                 instance_->onAppAck_(mac, id);
             }
@@ -464,6 +465,14 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             ESP_LOGI(TAG, "join success, peer idx=%d", idx);
         } else {
             ESP_LOGW(TAG, "join ack nonce mismatch");
+        }
+        return;
+    } else if (type == PacketType::ControlAppAck) {
+        if (payloadLen < static_cast<int>(sizeof(AppAckPayload))) return;
+        const AppAckPayload* ack = reinterpret_cast<const AppAckPayload*>(payload);
+        // mark app-ack received for potential future tracking
+        if (instance_->onAppAck_) {
+            instance_->onAppAck_(mac, ack->msgId);
         }
         return;
     } else {

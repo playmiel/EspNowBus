@@ -46,6 +46,7 @@ public:
         DataBroadcast = 2,
         ControlJoinReq = 3,
         ControlJoinAck = 4,
+        ControlAppAck = 5,
     };
 
     struct JoinReqPayload {
@@ -56,6 +57,10 @@ public:
     struct JoinAckPayload {
         uint8_t nonceA[kNonceLen];
         uint8_t nonceB[kNonceLen];
+    };
+
+    struct AppAckPayload {
+        uint16_t msgId;
     };
 
     enum SendStatus : uint8_t {
