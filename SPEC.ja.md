@@ -177,6 +177,10 @@ struct Config {
 
     // アプリ層 ACK（論理 ACK）を自動付与するか
     bool enableAppAck = true;               // 既定 ON。OFF にすると物理 ACK のみで送達確認はアプリ任せ
+
+    // リプレイ窓サイズ（可変設定）
+    uint16_t replayWindowBcast = 64;        // Broadcast 用
+    uint16_t replayWindowJoin  = 128;       // JOIN 用
 };
 ```
 

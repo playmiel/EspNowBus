@@ -687,13 +687,14 @@ void EspNowBus::reseedCounters(uint32_t now) {
 }
 
 bool EspNowBus::acceptBroadcastSeq(PeerInfo& peer, uint16_t seq) {
-    // Simple sliding window of size kReplayWindow with wrap-around handling
+    uint16_t window = config_.replayWindowBcast;
+    if (window == 0) return true;
     uint16_t base = peer.lastBroadcastBase;
     uint16_t dist = static_cast<uint16_t>(seq - base);
     if (dist == 0) {
         return false; // duplicate
     }
-    if (dist <= kReplayWindow) {
+    if (dist <= window && dist <= 64) {
         uint64_t bit = 1ULL << (dist - 1);
         if (peer.bcastWindow & bit) {
             return false; // seen
@@ -702,25 +703,24 @@ bool EspNowBus::acceptBroadcastSeq(PeerInfo& peer, uint16_t seq) {
         return true;
     }
     // advance window
-    if (dist > kReplayWindow) {
-        uint16_t shift = dist - 1;
-        if (shift >= 64) {
-            peer.bcastWindow = 0;
-        } else {
-            peer.bcastWindow <<= shift;
-        }
-        peer.bcastWindow |= 1ULL;
-        peer.lastBroadcastBase = seq;
-        return true;
+    uint16_t shift = dist - 1;
+    if (shift >= 64) {
+        peer.bcastWindow = 0;
+    } else {
+        peer.bcastWindow <<= shift;
     }
+    peer.bcastWindow |= 1ULL;
+    peer.lastBroadcastBase = seq;
     return true;
 }
 
 bool EspNowBus::acceptJoinSeq(PeerInfo& peer, uint16_t seq) {
+    uint16_t window = config_.replayWindowJoin;
+    if (window == 0) return true;
     uint16_t base = peer.lastJoinSeqBase;
     uint16_t dist = static_cast<uint16_t>(seq - base);
     if (dist == 0) return false;
-    if (dist <= kNonceWindow) {
+    if (dist <= window && dist <= 64) {
         uint64_t bit = 1ULL << ((dist - 1) % 64);
         if (peer.joinWindow & bit) {
             return false;
