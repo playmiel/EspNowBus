@@ -476,6 +476,10 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             instance_->txInFlight_ = false;
             instance_->retryCount_ = 0;
         }
+        // If app-ack arrives but no in-flight match, log warning
+        else if (!instance_->txInFlight_) {
+            ESP_LOGW(TAG, "app-ack late or no in-flight msgId=%u", ack->msgId);
+        }
         if (instance_->onAppAck_) {
             instance_->onAppAck_(mac, ack->msgId);
         }
@@ -516,12 +520,10 @@ void EspNowBus::handleSendComplete(bool ok, bool timedOut) {
             txDeadlineMs_ = millis() + config_.txTimeoutMs;
             return;
         }
-        if (!entry.expectAck) {
-            if (onSendResult_) onSendResult_(entry.mac, SendStatus::SentOk);
-            freeBuffer(entry.bufferIndex);
-            txInFlight_ = false;
-            retryCount_ = 0;
-        }
+        if (onSendResult_) onSendResult_(entry.mac, SendStatus::SentOk);
+        freeBuffer(entry.bufferIndex);
+        txInFlight_ = false;
+        retryCount_ = 0;
     } else {
         if (retryCount_ < config_.maxRetries) {
             retryCount_++;
@@ -595,10 +597,8 @@ void EspNowBus::sendTaskLoop() {
                     currentTx_.isRetry = true;
                     startSend(currentTx_);
                     currentTx_.appAckDeadlineMs = millis() + config_.txTimeoutMs;
-                    waitingAppAckId_ = currentTx_.msgId;
                     if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::Retrying);
                 } else {
-                    waitingAppAckId_ = 0;
                     if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::AppAckTimeout);
                     ESP_LOGW(TAG, "app-ack timeout mac=%02X:%02X:%02X:%02X:%02X:%02X", currentTx_.mac[0], currentTx_.mac[1], currentTx_.mac[2], currentTx_.mac[3], currentTx_.mac[4], currentTx_.mac[5]);
                     freeBuffer(currentTx_.bufferIndex);
