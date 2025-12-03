@@ -67,7 +67,34 @@ bool EspNowBus::begin(const Config &cfg)
         return false;
     }
 
+    // Wi-Fi channel: -1 = auto (hash from group), otherwise clip to 1-13
+    if (config_.channel == -1)
+    {
+        config_.channel = static_cast<int8_t>((derived_.groupId % 13) + 1);
+        ESP_LOGI(TAG, "auto channel -> %d", static_cast<int>(config_.channel));
+    }
+    else
+    {
+        if (config_.channel < 1)
+            config_.channel = 1;
+        if (config_.channel > 13)
+            config_.channel = 13;
+    }
+
+#if defined(WIFI_PHY_RATE_MAX)
+    if (config_.phyRate >= WIFI_PHY_RATE_MAX)
+    {
+        ESP_LOGW(TAG, "phyRate out of range, fallback to WIFI_PHY_RATE_1M_L");
+        config_.phyRate = WIFI_PHY_RATE_1M_L;
+    }
+#endif
+
     WiFi.mode(WIFI_STA);
+    esp_err_t chErr = esp_wifi_set_channel(static_cast<uint8_t>(config_.channel), WIFI_SECOND_CHAN_NONE);
+    if (chErr != ESP_OK)
+    {
+        ESP_LOGW(TAG, "set channel failed ch=%d err=%d", static_cast<int>(config_.channel), static_cast<int>(chErr));
+    }
     if (esp_now_init() != ESP_OK)
     {
         ESP_LOGE(TAG, "esp_now_init failed");
@@ -77,6 +104,18 @@ bool EspNowBus::begin(const Config &cfg)
     {
         esp_now_set_pmk(derived_.pmk);
     }
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+    // PHY レートは peer 追加時に per-peer で設定する
+    esp_err_t rateErr = ESP_OK;
+#else
+    esp_err_t rateErr = esp_wifi_config_espnow_rate(WIFI_IF_STA, config_.phyRate);
+#endif
+    if (rateErr != ESP_OK)
+    {
+        ESP_LOGW(TAG, "set phy rate failed rate=%d err=%d", static_cast<int>(config_.phyRate), static_cast<int>(rateErr));
+    }
+#endif
     esp_now_register_send_cb(&EspNowBus::onSendStatic);
     esp_now_register_recv_cb(&EspNowBus::onReceiveStatic);
 
@@ -89,6 +128,9 @@ bool EspNowBus::begin(const Config &cfg)
     const uint8_t broadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     esp_now_peer_info_t bcastPeer = makePeerInfo(broadcastMac, false, nullptr);
     esp_now_add_peer(&bcastPeer);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+    applyPeerRate(broadcastMac);
+#endif
 
     // Allocate payload pool
     poolCount_ = config_.maxQueueLength;
@@ -127,7 +169,9 @@ bool EspNowBus::begin(const Config &cfg)
         end();
         return false;
     }
-    ESP_LOGI(TAG, "begin success (enc=%d, queue=%u, payload=%u)", config_.useEncryption, config_.maxQueueLength, config_.maxPayloadBytes);
+    ESP_LOGI(TAG, "begin success (enc=%d, queue=%u, payload=%u, ch=%d, phy=%d)",
+             config_.useEncryption, config_.maxQueueLength, config_.maxPayloadBytes,
+             static_cast<int>(config_.channel), static_cast<int>(config_.phyRate));
     return true;
 }
 
@@ -245,6 +289,9 @@ bool EspNowBus::addPeer(const uint8_t mac[6])
         ESP_LOGE(TAG, "add_peer failed err=%d", err);
         return false;
     }
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+    applyPeerRate(mac);
+#endif
     return true;
 }
 
@@ -375,7 +422,12 @@ int EspNowBus::ensurePeer(const uint8_t mac[6])
             if (config_.useEncryption)
             {
                 esp_now_peer_info_t info = makePeerInfo(mac, true, derived_.lmk);
-                esp_now_add_peer(&info);
+                if (esp_now_add_peer(&info) == ESP_OK)
+                {
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+                    applyPeerRate(mac);
+#endif
+                }
             }
             return static_cast<int>(i);
         }
@@ -1101,4 +1153,46 @@ bool EspNowBus::acceptAppAck(PeerInfo &peer, uint16_t msgId)
     }
     peer.lastAppAckId = msgId;
     return true;
+}
+
+bool EspNowBus::applyPeerRate(const uint8_t mac[6])
+{
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+    if (!mac)
+        return false;
+    esp_now_rate_config_t rateCfg{};
+    rateCfg.rate = config_.phyRate;
+    rateCfg.ersu = false;
+    rateCfg.dcm = false;
+    if (config_.phyRate < WIFI_PHY_RATE_48M)
+    {
+        rateCfg.phymode = WIFI_PHY_MODE_11B;
+    }
+    else if (config_.phyRate < WIFI_PHY_RATE_MCS0_LGI)
+    {
+        rateCfg.phymode = WIFI_PHY_MODE_11G;
+    }
+    else if (config_.phyRate < WIFI_PHY_RATE_LORA_250K)
+    {
+        rateCfg.phymode = WIFI_PHY_MODE_HT20;
+    }
+    else
+    {
+        // default to 1M if unsupported
+        ESP_LOGW(TAG, "unsupported phyRate=%d, defaulting to 1M", static_cast<int>(config_.phyRate));
+        rateCfg.rate = WIFI_PHY_RATE_1M_L;
+        rateCfg.phymode = WIFI_PHY_MODE_11B;
+    }
+
+    esp_err_t err = esp_now_set_peer_rate_config(mac, &rateCfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "set peer rate failed rate=%d err=%d", static_cast<int>(config_.phyRate), static_cast<int>(err));
+        return false;
+    }
+    return true;
+#else
+    (void)mac;
+    return false;
+#endif
 }

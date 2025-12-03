@@ -6,9 +6,7 @@
 #include <freertos/task.h>
 #include <esp_now.h>
 #include <esp_idf_version.h>
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include <esp_wifi.h>
-#endif
 
 // ESP32 ESP-NOW message bus (design in SPEC.ja.md). Implementation is WIP.
 // APIs are stubbed so the library can be included and built while the core logic is developed.
@@ -23,6 +21,10 @@ public:
         bool useEncryption = true;
         bool enablePeerAuth = true;
         bool enableBroadcastAuth = true;
+
+        // Radio
+        int8_t channel = -1;                          // -1 = auto (groupName hash), otherwise clip to 1-13
+        wifi_phy_rate_t phyRate = WIFI_PHY_RATE_11M_L; // default 11M; adjust if you need higher throughput
 
         uint16_t maxQueueLength = 16;
         uint16_t maxPayloadBytes = 1470;
@@ -273,4 +275,6 @@ private:
     void recordSendFailure(const uint8_t mac[6]);
     void recordSendSuccess(const uint8_t mac[6]);
     void purgePeer(int idx);
+
+    bool applyPeerRate(const uint8_t mac[6]);
 };

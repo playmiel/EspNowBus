@@ -161,6 +161,10 @@ struct Config {
     bool enablePeerAuth       = true;    // チャレンジレスポンス ON
     bool enableBroadcastAuth  = true;    // Broadcast 認証
 
+    // 無線設定
+    int8_t channel = -1;                 // -1 で groupName 由来のハッシュ値から自動決定 (1〜13 を使用)、範囲外はクリップ
+    wifi_phy_rate_t phyRate = WIFI_PHY_RATE_11M_L; // 送信速度。既定は 11M。必要に応じて高速化
+
     uint16_t maxQueueLength   = 16;      // 送信キュー長
     uint16_t maxPayloadBytes  = 1470;    // 送信ペイロード上限（ESP-NOW v2.0 想定）。互換性重視なら 250 に下げる
     uint32_t sendTimeoutMs    = 50;      // キュー投入時の既定タイムアウト。0=非ブロック, portMAX_DELAY=無期限
@@ -243,6 +247,10 @@ static constexpr uint16_t kMaxPayloadDefault = 1470; // ESP-NOW v2.0 の MTU 目
 static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 ```
 
+無線設定:
+- `channel`: -1 の場合は `groupId` を 1〜13 にマッピングして自動決定。明示指定は 1〜13 にクリップして使用。
+- `phyRate`: `wifi_phy_rate_t` の値を渡す（例: `WIFI_PHY_RATE_11M_L` 既定, 高速化したい場合は 2M/11M/24M などに変更）。環境が対応しない値を渡した場合は既定値にフォールバックする想定。ESP-IDF 5.1 以降は peer ごとの設定（ユニキャスト/ブロードキャスト用 peer の両方）として適用する。
+
 ---
 
 ## 8. 動作仕様
@@ -252,6 +260,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - 内部 FreeRTOS タスクが 1件ずつ処理
 - 送信完了は onSendResult で通知
 - `len > Config.maxPayloadBytes` の場合は即座に enqueue 失敗を返す
+- `maxPayloadBytes` は IDF の `ESP_NOW_MAX_DATA_LEN(_V2)` を上限・ヘッダ分を下限にクリップする。実際にユーザーデータに使えるバイト数は Unicast でおおよそ `maxPayloadBytes - 6`、Broadcast/Control で `maxPayloadBytes - 6 - 4 - 16` と少なくなる点に注意。
 - 送信キュー用メモリは `begin()` で一括確保し、以後 malloc しない  
   - ペイロードは固定長バッファ（`maxPayloadBytes` 分）にコピーして保持  
   - キュー管理は FreeRTOS Queue（`xQueueCreate` 系）を使用。エントリは「バッファへのポインタ + 長さ + 宛先種別」などメタデータのみ  

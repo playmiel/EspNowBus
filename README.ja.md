@@ -55,6 +55,8 @@ void loop() {
 - `useEncryption` (既定 true): ESP-NOW 暗号化。最大 peer 数は約 6。
 - `enablePeerAuth` (既定 true): JOIN 時のチャレンジレスポンス。
 - `enableBroadcastAuth` (既定 true): Broadcast の HMAC 認証とリプレイ防止。
+- `channel` (既定 -1): Wi-Fi チャンネル。-1 は `groupName`/`groupId` をハッシュして 1〜13 を自動決定。明示指定は 1〜13 にクリップ。グループ全体で同じチャンネルに合わせること。
+- `phyRate` (既定 `WIFI_PHY_RATE_11M_L`): ESP-NOW PHY 速度。必要なら 2M/11M/24M などへ上げられるが、環境に合わせて利用。無効値は既定にフォールバック。ESP-IDF 5.1 以降は peer ごとの設定になるため、追加した各 peer（ブロードキャスト用の peer 含む）にレートを適用します。
 - `maxQueueLength` (既定 16): 送信キュー長。
 - `maxPayloadBytes` (既定 1470): 送信ペイロード上限。ESP-IDF 5.4 以降は ~1470B、5.3 以前は実質 ~250B が上限。内部ヘッダ分を差し引く必要があり、実際に使えるのは Unicast で約 `maxPayloadBytes-6`、Broadcast で約 `maxPayloadBytes-6-4-16` バイト。
 - `maxRetries` (既定 1): 初回送信後のリトライ回数。0 でリトライなし。
