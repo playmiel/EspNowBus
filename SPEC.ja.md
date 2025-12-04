@@ -120,14 +120,14 @@ groupSecret → groupId / keyAuth / keyBcast
 
 #### ControlJoinReq / Ack / AppAck（固定長）
 - 共通: `groupId(4, LE)` + `authTag(16)` を付与し、HMAC は `keyAuth` を使用  
-- ControlJoinReq:
+- ControlJoinReq（ブロードキャスト送信）:
   - `BaseHeader`（id に seq）
   - `groupId`
   - `nonceA[8]`
   - `prevToken[8]`（前回 responder の nonceB。無ければ 0 埋め）
   - `targetMac[6]`（全体募集は `ff:ff:ff:ff:ff:ff`。対象限定募集は応募してほしい MAC を指定）
   - `authTag = HMAC(keyAuth, header..targetMac)`
-- ControlJoinAck:
+- ControlJoinAck（ブロードキャスト送信）:
   - `BaseHeader`（id に seq）
   - `groupId`
   - `nonceA[8]`（エコー）
