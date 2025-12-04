@@ -72,7 +72,7 @@ void loop() {
 - `taskStackSize` (既定 4096): 送信タスクのスタックサイズ（バイト）。
 - `enableAppAck` (既定 true): ユニキャストにアプリ層 ACK を自動付与。成功は `AppAckReceived`、未達はリトライののち `AppAckTimeout` で通知。
 - ISR 非対応: `sendTo`/`broadcast` は ISR から呼べない（ブロッキング API を使用するため）。
-- `replayWindowBcast` (既定 64): Broadcast のリプレイ窓（0 で無効）。
+- `replayWindowBcast` (既定 32): Broadcast のリプレイ窓（0 で無効。送信元最大16件・32bit窓、超過時は最古の送信元を破棄）
 
 ### 送信ごとのタイムアウト上書き
 `sendTo` / `sendToAllPeers` / `broadcast` に任意の `timeoutMs` を指定可能。  
@@ -99,7 +99,7 @@ void loop() {
 - リトライ時はリトライフラグを立て、受信側は peer ごとに `msgId/seq` を見て重複を破棄（必要ならコールバックにリトライ情報を渡す）。
 - 送信完了 CB では共有状態を触らず、FreeRTOS のタスク通知（`xTaskNotifyFromISR`）で送信タスクに結果を渡し、送信タスク側でフラグを下ろして `onSendResult` を実行する。
 - JOIN フロー: `sendJoinRequest(targetMac)` で ControlJoinReq をブロードキャスト（HMAC+targetMac）。受け入れ側は `groupId/targetMac/HMAC` を検証し、ControlJoinAck（nonceA echo + nonceB + targetMac, HMAC）をブロードキャストで返す。双方が Ack 受信後に peer 追加し、以後のユニキャストを暗号化する。
-- Broadcast / Control パケットには groupId と HMAC(16B) を付与（keyBcast または keyAuth を使用）。Broadcast は peer ごとに 64 エントリのスライド窓でリプレイ防止。
+- Broadcast / Control パケットには groupId と HMAC(16B) を付与（keyBcast または keyAuth を使用）。Broadcast のリプレイは送信元最大16件・32bit窓で抑止し、超過時は最古の送信元を破棄する。
 - ESP-NOW 暗号化を OFF にしても、Broadcast/Control/AppAck/Heartbeat は HMAC（keyBcast/keyAuth）で認証し、`enableAppAck` は ON のまま運用するのを推奨。
 - ハートビート: ユニキャスト Ping/Pong（AppAck なし）。Pong 受信で生存判定。途絶時は 2x で対象限定 JOIN、3x で切断。
 - 論理 ACK（`enableAppAck=true` が既定）: 受信側が msgId 付きで自動返信。物理 ACK だけでは到達保証せず、論理 ACK 未達は未達扱いでリトライ/再JOIN。物理 ACK 無しで論理 ACK が来た場合は成功扱いだが警告ログを残す。

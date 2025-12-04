@@ -182,7 +182,7 @@ struct Config {
     uint16_t taskStackSize = 4096;          // 送信タスクのスタックサイズ（バイト）
 
     // リプレイ窓サイズ（可変設定）
-    uint16_t replayWindowBcast = 64;        // Broadcast 用
+    uint16_t replayWindowBcast = 32;        // Broadcast 用（送信元最大16件、窓幅32bitで管理。超過時は最古送信元を破棄）
 
 };
 ```
@@ -329,7 +329,7 @@ JOIN リプレイに関する考え方:
 ### 8.4 重複検出・リトライ扱い
 - Unicast: peer ごとに最後に受理した `msgId` を記録し、同一 `msgId`（リトライ）は破棄（必要なら onReceive に「リトライだった」メタ情報を渡す）  
 - Broadcast: `seq` の再送は authTag 検証後、リプレイ窓で破棄。`flags.isRetry` はデバッグ用フラグとして利用  
-- リプレイ窓幅は 16〜64 程度を想定し、オーバーフロー時も最も近い未来方向のみを受理する簡易窓で実装
+- リプレイ窓幅は 32 を基本とし、オーバーフロー時も最も近い未来方向のみを受理する簡易窓で実装（Broadcast は送信元最大16件、窓幅32bit、超過時は最古送信元を破棄）
 - 論理 ACK: 受信側が重複と判定して UserPayload を渡さなかった場合でも、`enableAppAck=true` なら msgId を含む Ack を返信する（送信側の再送抑止のため）
 - onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout` を固定列挙で定義
 - ControlAppAck のリプレイ: in-flight の msgId と一致するもののみ受理し、その他は無視（警告ログ）。16bit msgId の wrap によりごく稀に誤完了の可能性はあるが許容する方針

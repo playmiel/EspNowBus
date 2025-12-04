@@ -73,7 +73,7 @@ void loop() {
 - `taskStackSize` (default `4096`): send-task stack size (bytes).
 - `enableAppAck` (default `true`): auto app-level ACKs for unicast. When enabled, delivery success is signaled by `AppAckReceived`; missing app-ACK triggers retries and `AppAckTimeout`.
 - Not ISR-safe: `sendTo`/`broadcast` cannot be called from ISR (queue/blocking APIs are used).
-- `replayWindowBcast` (default `64`): broadcast replay window (set 0 to disable).
+- `replayWindowBcast` (default `32`): broadcast replay window (set 0 to disable; max 16 senders, 32-bit window, evict oldest sender on overflow).
 
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  
@@ -100,7 +100,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Retries set a retry flag; receivers drop duplicate `msgId/seq` per peer and may optionally surface "wasRetry" metadata in callbacks.
 - Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
 - JOIN flow: `sendJoinRequest(targetMac)` broadcasts ControlJoinReq (HMAC+targetMac). Acceptors validate `groupId/targetMac/HMAC` and broadcast ControlJoinAck (echo nonceA, add nonceB+targetMac, HMAC). Both sides add peer after Ack and switch to encrypted unicast.
-- Broadcast/control packets carry `groupId` and a 16-byte HMAC tag (keyBcast or keyAuth); receivers verify and drop mismatches. Broadcast replay is limited via a 64-entry sliding window per peer.
+- Broadcast/control packets carry `groupId` and a 16-byte HMAC tag (keyBcast or keyAuth); receivers verify and drop mismatches. Broadcast replay uses a small table (max 16 senders, 32-bit window; evict oldest sender on overflow).
 - Even with ESP-NOW encryption disabled, Broadcast/Control/AppAck/Heartbeat packets carry HMAC (keyBcast/keyAuth) for authenticity; keep `enableAppAck` on for delivery assurance.
 - Heartbeat: unicast Ping/Pong without AppAck. Pong reception marks liveness; missing heartbeat drives targeted JOIN at 2× interval and disconnect at 3× interval.
 - App-level ACKs (`enableAppAck=true` by default): receiver auto-replies with msgId-based ACKs; sender treats missing app-ACK as undelivered (even if ESP-NOW reported success). If an app-ACK arrives without a physical ACK, mark delivered but log a warning.
