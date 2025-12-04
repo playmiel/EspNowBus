@@ -127,12 +127,13 @@ groupSecret → groupId / keyAuth / keyBcast
   - `prevToken[8]`（前回 responder の nonceB。無ければ 0 埋め）
   - `targetMac[6]`（全体募集は `ff:ff:ff:ff:ff:ff`。対象限定募集は応募してほしい MAC を指定）
   - `authTag = HMAC(keyAuth, header..targetMac)`
-- ControlJoinAck（ブロードキャスト送信、nonceA が一致する応募元だけが受理）:
+- ControlJoinAck（ブロードキャスト送信、nonceA/targetMac が一致する応募元だけが受理）:
   - `BaseHeader`（id に seq）
   - `groupId`
   - `nonceA[8]`（エコー）
   - `nonceB[8]`（新規生成）
-  - `authTag = HMAC(keyAuth, header..nonceB)`
+  - `targetMac[6]`（応募元 MAC。ControlJoinReq の送信元を入れる）
+  - `authTag = HMAC(keyAuth, header..nonceB..targetMac)`
 - ControlJoinReq/Ack は、`useEncryption=true` の場合でも **ESP-NOW 暗号化なしで送信**（まだ peer 登録前のため）。HMAC で改ざん/なりすましを防ぎ、Ack を受け取った側は peer を追加して以後のユニキャストを暗号化する。再ペア時に片側だけ peer が残っていても、ブロードキャスト Ack なら到達性を確保できる
 - ControlHeartbeat（ユニキャスト送信）:
   - `BaseHeader`（id = msgId）
@@ -319,7 +320,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 3. 受け入れ側: `ControlJoinReq` を受信し、`groupId/authTag` を検証（`targetMac` が自分宛/broadcast のときだけ処理）  
 4. 受け入れ側: 認証OKなら `ControlJoinAck` をブロードキャストで送信（平文、keyAuth の HMAC で保護）  
 5. 受け入れ側: Ack 送信後に応募元 MAC を peer 登録し、以後のユニキャストを暗号化で送る  
-6. 要求側: Ack を受信したら peer を追加し、以後のユニキャストを暗号化で送る
+6. 要求側: Ack（nonceA と targetMac が一致）を受信したら peer を追加し、以後のユニキャストを暗号化で送る
 
 ### 8.4 重複検出・リトライ扱い
 - Unicast: peer ごとに最後に受理した `msgId` を記録し、同一 `msgId`（リトライ）は破棄（必要なら onReceive に「リトライだった」メタ情報を渡す）  
