@@ -101,10 +101,9 @@ groupSecret → groupId / keyAuth / keyBcast
 ### 6.2 PacketType 一覧
 - `DataUnicast`  
 - `DataBroadcast`  
-- `PeerAuthHello` / `PeerAuthResponse`  
 - `ControlJoinReq` / `ControlJoinAck`  
+- `ControlHeartbeat`
 - `ControlAppAck`（論理 ACK 用）
-- `ControlHeartbeat`（ユニキャスト心拍確認）
 
 ### 6.3 種別別の振る舞い
 #### DataUnicast

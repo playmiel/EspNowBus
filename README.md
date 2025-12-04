@@ -13,7 +13,7 @@ Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. 
 ## Concepts
 - **Group name → keys/IDs**: A `groupName` derives `groupSecret`, `groupId`, `keyAuth` (join auth), and `keyBcast` (broadcast auth).
 - **Roles**: `Master` / `Flat` can accept registrations; `Slave` cannot. Internally managed via `canAcceptRegistrations`.
-- **Packet types**: `DataUnicast`, `DataBroadcast`, `PeerAuthHello`, `PeerAuthResponse`, `ControlJoinReq`, `ControlJoinAck`.
+- **Packet types**: `DataUnicast`, `DataBroadcast`, `ControlJoinReq`, `ControlJoinAck`, `ControlHeartbeat`, `ControlAppAck`.
 - **Security**: Broadcast packets carry `groupId`, `seq`, and `authTag`; join uses challenge/response; encryption is recommended.
 
 ## Quick start

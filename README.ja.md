@@ -13,7 +13,7 @@ ESP32 / Arduino 向けの軽量な ESP-NOW グループメッセージバス。�
 ## 基本コンセプト
 - **groupName から鍵派生**: `groupName` → `groupSecret` → `groupId` / `keyAuth` / `keyBcast`。
 - **ロール**: Master / Flat は登録受け入れ可、Slave は不可（`canAcceptRegistrations` で管理）。
-- **パケット種別**: `DataUnicast`, `DataBroadcast`, `PeerAuthHello`, `PeerAuthResponse`, `ControlJoinReq`, `ControlJoinAck`。
+- **パケット種別**: `DataUnicast`, `DataBroadcast`, `ControlJoinReq`, `ControlJoinAck`, `ControlHeartbeat`, `ControlAppAck`。
 - **セキュリティ**: Broadcast には `groupId`・`seq`・`authTag` を付与し、JOIN はチャレンジレスポンスで認証。暗号化利用を推奨。
 
 ## クイックスタート
