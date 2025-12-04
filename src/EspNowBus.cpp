@@ -176,13 +176,11 @@ bool EspNowBus::begin(const Config &cfg)
 }
 
 bool EspNowBus::begin(const char *groupName,
-                      bool canAcceptRegistrations,
                       bool useEncryption,
                       uint16_t maxQueueLength)
 {
     Config cfg;
     cfg.groupName = groupName;
-    cfg.canAcceptRegistrations = canAcceptRegistrations;
     cfg.useEncryption = useEncryption;
     cfg.maxQueueLength = maxQueueLength;
     return begin(cfg);
@@ -345,11 +343,6 @@ bool EspNowBus::getPeer(size_t index, uint8_t macOut[6]) const
         ++cnt;
     }
     return false;
-}
-
-void EspNowBus::setAcceptRegistration(bool enable)
-{
-    config_.canAcceptRegistrations = enable;
 }
 
 bool EspNowBus::sendRegistrationRequest()
@@ -709,7 +702,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
     }
     else if (type == PacketType::ControlJoinReq)
     {
-        if (idx >= 0 && instance_->config_.canAcceptRegistrations)
+        if (idx >= 0)
         {
             // Drop duplicate JOIN by join window
             if (!instance_->acceptJoinSeq(instance_->peers_[idx], id))

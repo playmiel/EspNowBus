@@ -20,8 +20,6 @@ public:
 
         bool useEncryption = true;
         bool enablePeerAuth = true;
-        bool enableBroadcastAuth = true;
-
         // Radio
         int8_t channel = -1;                          // -1 = auto (groupName hash), otherwise clip to 1-13
         wifi_phy_rate_t phyRate = WIFI_PHY_RATE_11M_L; // default 11M; adjust if you need higher throughput
@@ -32,8 +30,6 @@ public:
         uint8_t maxRetries = 1;
         uint16_t retryDelayMs = 0;
         uint32_t txTimeoutMs = 120;
-
-        bool canAcceptRegistrations = true;
 
         int8_t taskCore = ARDUINO_RUNNING_CORE; // -1 = unpinned, 0/1 = pinned core
         UBaseType_t taskPriority = 3;
@@ -114,7 +110,6 @@ public:
     bool begin(const Config &cfg);
 
     bool begin(const char *groupName,
-               bool canAcceptRegistrations = true,
                bool useEncryption = true,
                uint16_t maxQueueLength = 16);
 
@@ -135,8 +130,6 @@ public:
     bool hasPeer(const uint8_t mac[6]) const;
     size_t peerCount() const;
     bool getPeer(size_t index, uint8_t macOut[6]) const;
-
-    void setAcceptRegistration(bool enable);
 
     bool sendRegistrationRequest();
 
