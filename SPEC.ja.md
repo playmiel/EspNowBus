@@ -184,10 +184,6 @@ struct Config {
     uint16_t replayWindowBcast = 64;        // Broadcast 用
     uint16_t replayWindowJoin  = 64;        // JOIN 用（内部窓は64まで）
 
-    // 連続失敗時の自動パージ設定（デフォルト無効）
-    uint8_t  maxAckFailures    = 0;         // 0 で無効。連続 AppAckTimeout/SendFailed がこの回数を超えたらパージ
-    uint32_t failureWindowMs   = 30000;     // 連続失敗をカウントする時間窓
-    bool     rejoinAfterPurge  = false;     // パージ後に sendRegistrationRequest を自動送信するか
 };
 ```
 
@@ -232,7 +228,6 @@ public:
 
     // イベントコールバック設定
     void onJoinEvent(JoinEventCb cb);   // JOIN 受理/拒否/成功時
-    void onPeerPurged(PurgeEventCb cb); // 自動パージ時
 };
 
 // timeout の特別値
@@ -288,8 +283,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
   - `taskCore = -1` でピン留めなし、0/1 でコア指定可  
   - 優先度を上げ過ぎると WiFi/ESP-NOW タスクを妨げる可能性あり
 - 物理 ACK（ESP-NOW の MAC 層 ACK）は、復号に失敗しても返る点に注意。`onSendResult(SentOk)` は「物理送信成功」を意味し、論理的な到達は保証しない  
-- 連続失敗時の自動パージ（オプション）: `maxAckFailures>0` の場合、`failureWindowMs` 内に連続で `AppAckTimeout`/`SendFailed` がしきい値を超えたピアを `removePeer`。`rejoinAfterPurge=true` ならパージ後に `sendRegistrationRequest()` を自動送信する
-  - onSendResult の完了は AppAckReceived（論理 ACK）を以て成功とし、AppAckTimeout で失敗扱い（物理送信成功だけでは完了としない）
+- 自動パージ設定は廃止し、ハートビート監視と対象限定募集で再接続・切断を管理する
 
 ### 8.2 受信
 - BaseHeader → PacketType で分岐
