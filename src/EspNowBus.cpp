@@ -221,11 +221,16 @@ bool EspNowBus::sendTo(const uint8_t mac[6], const void *data, size_t len, uint3
 {
     if (!mac)
         return false;
+    ESP_LOGD(TAG, "sendTo mac=%02X:%02X:%02X:%02X:%02X:%02X len=%u timeout=%u",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+             static_cast<unsigned>(len),
+             static_cast<unsigned>(timeoutMs));
     return enqueueCommon(Dest::Unicast, PacketType::DataUnicast, mac, data, len, timeoutMs);
 }
 
 bool EspNowBus::sendToAllPeers(const void *data, size_t len, uint32_t timeoutMs)
 {
+    ESP_LOGD(TAG, "sendToAllPeers len=%u timeout=%u", static_cast<unsigned>(len), static_cast<unsigned>(timeoutMs));
     bool ok = true;
     for (size_t i = 0; i < kMaxPeers; ++i)
     {
@@ -242,6 +247,7 @@ bool EspNowBus::sendToAllPeers(const void *data, size_t len, uint32_t timeoutMs)
 bool EspNowBus::broadcast(const void *data, size_t len, uint32_t timeoutMs)
 {
     static const uint8_t bcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    ESP_LOGD(TAG, "broadcast len=%u timeout=%u", static_cast<unsigned>(len), static_cast<unsigned>(timeoutMs));
     return enqueueCommon(Dest::Broadcast, PacketType::DataBroadcast, bcast, data, len, timeoutMs);
 }
 
@@ -358,7 +364,16 @@ bool EspNowBus::sendRegistrationRequest()
     {
         memcpy(payload.prevToken, storedNonceB_, kNonceLen);
     }
+    else
+    {
+        memset(payload.prevToken, 0, kNonceLen);
+    }
     pendingJoin_ = true;
+    size_t peers = peerCount();
+    ESP_LOGD(TAG, "sendRegistrationRequest nonceA=%02X%02X... prevTokenValid=%d peers=%u",
+             payload.nonceA[0], payload.nonceA[1], storedNonceBValid_,
+             static_cast<unsigned>(peers));
+    lastJoinReqMs_ = t;
     return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, &payload, sizeof(payload), kUseDefault);
 }
 
@@ -586,6 +601,11 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
     }
     if (onSendResult_)
         onSendResult_(mac, SendStatus::Queued);
+    ESP_LOGV(TAG, "enqueue pkt=%u dest=%u mac=%02X:%02X:%02X:%02X:%02X:%02X len=%u total=%u",
+             static_cast<unsigned>(pktType), static_cast<unsigned>(dest),
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+             static_cast<unsigned>(len),
+             static_cast<unsigned>(cursor));
     return true;
 }
 
@@ -624,12 +644,20 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
     bool isRetry = (p[3] & 0x01) != 0;
     uint16_t id = static_cast<uint16_t>(p[4]) | (static_cast<uint16_t>(p[5]) << 8);
 
+    ESP_LOGV(TAG, "rx pkt type=%u len=%d id=%u retry=%d mac=%02X:%02X:%02X:%02X:%02X:%02X",
+             static_cast<unsigned>(type), len, static_cast<unsigned>(id), isRetry,
+             mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
+             mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
+
     const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck || type == PacketType::ControlAppAck);
     if (needsAuth)
     {
         if (!instance_->verifyAuthTag(data, len, type))
         {
-            ESP_LOGW(TAG, "auth fail or group mismatch type=%u", type);
+            ESP_LOGW(TAG, "auth fail or group mismatch type=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                     static_cast<unsigned>(type),
+                     mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
+                     mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
             return; // auth failed or groupId mismatch
         }
     }
@@ -660,12 +688,22 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
             }
         }
         if (duplicate)
+        {
+            ESP_LOGD(TAG, "rx unicast duplicate msgId=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                     static_cast<unsigned>(id),
+                     mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
+                     mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
             return; // duplicate payload is dropped
+        }
     }
     else if (type == PacketType::DataBroadcast)
     {
         if (idx >= 0 && !instance_->acceptBroadcastSeq(instance_->peers_[idx], id))
         {
+            ESP_LOGD(TAG, "rx bcast replay drop seq=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                     static_cast<unsigned>(id),
+                     mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
+                     mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
             return;
         }
     }
@@ -679,6 +717,10 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
                 ESP_LOGW(TAG, "join replay drop");
                 return;
             }
+            size_t peers = instance_->peerCount();
+            ESP_LOGD(TAG, "join req received from %02X:%02X:%02X:%02X:%02X:%02X peers=%u",
+                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+                     static_cast<unsigned>(peers));
             instance_->addPeer(mac);
             if (instance_->onJoinEvent_)
                 instance_->onJoinEvent_(mac, true, false);
@@ -691,7 +733,6 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
             bool resumed = memcmp(req->prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
             if (instance_->storedNonceBValid_ && !resumed)
             {
-                ESP_LOGW(TAG, "join prevToken mismatch, treating as fresh");
                 memset(instance_->peers_[idx].lastNonceB, 0, kNonceLen);
                 instance_->storedNonceBValid_ = false;
             }
@@ -751,7 +792,10 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
         const AppAckPayload *ack = reinterpret_cast<const AppAckPayload *>(payload);
         if (idx >= 0 && !instance_->acceptAppAck(instance_->peers_[idx], ack->msgId))
         {
-            ESP_LOGW(TAG, "app-ack replay drop msgId=%u", ack->msgId);
+            ESP_LOGW(TAG, "app-ack replay drop msgId=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                     ack->msgId,
+                     mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
+                     mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
             return;
         }
         if (instance_->txInFlight_ && instance_->currentTx_.expectAck && ack->msgId == instance_->currentTx_.msgId)
@@ -775,7 +819,10 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
     }
     else
     {
-        ESP_LOGW(TAG, "unknown packet type=%u", type);
+        ESP_LOGW(TAG, "unknown packet type=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                 static_cast<unsigned>(type),
+                 mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
+                 mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
         return;
     }
     if (instance_->onReceive_)
@@ -801,9 +848,34 @@ bool EspNowBus::startSend(const TxItem &item)
     {
         buf[3] |= 0x01; // isRetry flag
     }
+    // Recompute auth tag if needed (flags change alters HMAC input)
+    if (item.pktType == PacketType::DataBroadcast ||
+        item.pktType == PacketType::ControlJoinReq ||
+        item.pktType == PacketType::ControlJoinAck ||
+        item.pktType == PacketType::ControlAppAck)
+    {
+        const uint8_t *key = (item.pktType == PacketType::ControlJoinReq ||
+                              item.pktType == PacketType::ControlJoinAck ||
+                              item.pktType == PacketType::ControlAppAck)
+                                 ? derived_.keyAuth
+                                 : derived_.keyBcast;
+        if (item.len >= kHeaderSize + 4 + kAuthTagLen)
+        {
+            size_t tagOffset = static_cast<size_t>(item.len) - kAuthTagLen;
+            computeAuthTag(buf + tagOffset, buf, tagOffset, key);
+        }
+    }
     const uint8_t *targetMac = item.mac;
     esp_err_t err = esp_now_send(targetMac, buf, item.len);
-    return err == ESP_OK;
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_now_send failed err=%d mac=%02X:%02X:%02X:%02X:%02X:%02X len=%u",
+                 static_cast<int>(err),
+                 targetMac[0], targetMac[1], targetMac[2], targetMac[3], targetMac[4], targetMac[5],
+                 static_cast<unsigned>(item.len));
+        return false;
+    }
+    return true;
 }
 
 void EspNowBus::handleSendComplete(bool ok, bool timedOut)
@@ -853,6 +925,14 @@ void EspNowBus::handleSendComplete(bool ok, bool timedOut)
             ESP_LOGE(TAG, "send failed mac=%02X:%02X:%02X:%02X:%02X:%02X", entry.mac[0], entry.mac[1], entry.mac[2], entry.mac[3], entry.mac[4], entry.mac[5]);
         }
         recordSendFailure(entry.mac);
+        // 再起動などでペアが外れた場合のリカバリ: 一定間隔で JOIN を再送
+        uint32_t now = millis();
+        if (!pendingJoin_ && (now - lastJoinReqMs_ > 5000))
+        {
+            ESP_LOGI(TAG, "send failure to %02X:%02X:%02X:%02X:%02X:%02X, issuing re-JOIN",
+                     entry.mac[0], entry.mac[1], entry.mac[2], entry.mac[3], entry.mac[4], entry.mac[5]);
+            sendRegistrationRequest();
+        }
         freeBuffer(entry.bufferIndex);
         txInFlight_ = false;
         retryCount_ = 0;
@@ -875,6 +955,8 @@ bool EspNowBus::sendNextIfIdle(TickType_t waitTicks)
             freeBuffer(item.bufferIndex);
             if (onSendResult_)
                 onSendResult_(item.mac, SendStatus::SendFailed);
+            ESP_LOGE(TAG, "startSend failed mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                     item.mac[0], item.mac[1], item.mac[2], item.mac[3], item.mac[4], item.mac[5]);
         }
         return true;
     }
