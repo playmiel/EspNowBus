@@ -137,9 +137,9 @@ groupSecret → groupId / keyAuth / keyBcast
 - ControlHeartbeat（ユニキャスト送信）:
   - `BaseHeader`（id = msgId）
   - `groupId`
-  - `kind`（1byte: 0=Ping, 1=Pong などの簡易種別）
+  - `kind`（1byte: 0=Ping, 1=Pong）
   - `authTag = HMAC(keyAuth, header..kind)`
-  - AppAck が有効ならこれに対して AppAck を返し、Ping/Pong どちらでも受信をもってハートビート有効とみなす
+  - Ping を受信したら生存更新し、Pong を返す（AppAck は使わない）。Pong を受信できればハートビート成立とみなす
 - ControlAppAck（ユニキャストの論理 ACK）:
   - `BaseHeader`（id = msgId）
   - `groupId`
@@ -266,6 +266,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
   - 物理 ACK だけで論理 ACK が無い場合は「未達/不明」としてリトライまたは再JOIN を行う  
   - 物理 ACK が無くても論理 ACK を受信できた場合は「到達成功」としつつ警告ログを残す  
   - app-ACK 無効のユニキャストでは `SentOk` が完了通知となり、論理 ACK は送受信しない
+- ハートビートは `ControlHeartbeat` をユニキャスト送信する（既定 10s 間隔の Ping → Pong 受信で到達確認、AppAck は使わない）
 - `len > Config.maxPayloadBytes` の場合は即座に enqueue 失敗を返す
 - `maxPayloadBytes` は IDF の `ESP_NOW_MAX_DATA_LEN(_V2)` を上限・ヘッダ分を下限にクリップする。実際にユーザーデータに使えるバイト数は Unicast でおおよそ `maxPayloadBytes - 6`、Broadcast/Control で `maxPayloadBytes - 6 - 4 - 16` と少なくなる点に注意。
 - 送信キュー用メモリは `begin()` で一括確保し、以後 malloc しない  
@@ -299,6 +300,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - DataUnicast → 認証済み peer のみ許可
 - DataBroadcast → groupId & authTag を検証
 - ControlJoinReq → 自動ペア登録フローへ渡す
+- ControlHeartbeat → HMAC 検証後、Ping なら生存更新＋Pong を返す（AppAck は使わない）
 
 ### 8.3 自動ペア登録
 - 募集（JOIN 要請）は 30 秒間隔の定期実行が既定。`0` を設定すると自動募集は無効化され、必要なときだけアプリが明示的に `sendRegistrationRequest()` を呼び出す運用になる  
