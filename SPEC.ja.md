@@ -83,7 +83,7 @@ groupSecret → groupId / keyAuth / keyBcast
 
 ### 5.5 ユニキャストの論理送達確認
 - 物理 ACK だけでは「届いたが復号に失敗」でも成功扱いになるため、ユニキャストでは `enableAppAck=true` を前提に **ペイロード内容を含めた HMAC を検証してから完了** とする
-- app-ACK 無効時は ESP-NOW の物理 ACK でのみ完了判定するが、到達保証は下がる
+- app-ACK 無効時は ESP-NOW の物理 ACK でのみ完了判定するが、到達保証は下がる。完了フローの詳細は 8.1 を参照。
 
 ---
 
@@ -134,16 +134,11 @@ groupSecret → groupId / keyAuth / keyBcast
   - `nonceB[8]`（新規生成）
   - `authTag = HMAC(keyAuth, header..nonceB)`
 - ControlAppAck（ユニキャストの論理 ACK）:
-  - `BaseHeader`（id に msgId）
+  - `BaseHeader`（id = msgId）
   - `groupId`
   - `msgId`（2byte, LE）
   - `authTag = HMAC(keyAuth, header..msgId)`
-
-#### ControlAppAck
-- ユニキャストの論理 ACK
-- `[BaseHeader(id=msgId)][groupId][authTag][AppAckPayload(msgId)]`
-- HMAC は keyAuth を使用
-- ユニキャストのみで使用し、`enableAppAck=true` の場合に自動送信
+  - ユニキャストのみで使用し、`enableAppAck=true` の場合に自動送信（別節の説明を参照）
 
 ---
 
@@ -255,6 +250,11 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
   - **ユニキャスト + enableAppAck=true**: 受信側で HMAC 検証済みの AppAck を受信して初めて完了（ペイロードが壊れていても物理 ACK は返るため）  
   - **ユニキャスト + enableAppAck=false**: ESP-NOW の物理 ACK で完了  
   - **ブロードキャスト**: ACK が取れないため、ペイロード長と送信速度に応じた待ち時間を置いて完了扱いとする（その間は次の送信をキューで待機）
+- ユニキャスト論理 ACK（enableAppAck=true の場合）  
+  - 受信側は msgId を含む AppAck を自動返信し、送信側はそれを受け取って完了とする  
+  - 物理 ACK だけで論理 ACK が無い場合は「未達/不明」としてリトライまたは再JOIN を行う  
+  - 物理 ACK が無くても論理 ACK を受信できた場合は「到達成功」としつつ警告ログを残す  
+  - app-ACK 無効のユニキャストでは `SentOk` が完了通知となり、論理 ACK は送受信しない
 - `len > Config.maxPayloadBytes` の場合は即座に enqueue 失敗を返す
 - `maxPayloadBytes` は IDF の `ESP_NOW_MAX_DATA_LEN(_V2)` を上限・ヘッダ分を下限にクリップする。実際にユーザーデータに使えるバイト数は Unicast でおおよそ `maxPayloadBytes - 6`、Broadcast/Control で `maxPayloadBytes - 6 - 4 - 16` と少なくなる点に注意。
 - 送信キュー用メモリは `begin()` で一括確保し、以後 malloc しない  
@@ -281,10 +281,6 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
   - `taskCore = -1` でピン留めなし、0/1 でコア指定可  
   - 優先度を上げ過ぎると WiFi/ESP-NOW タスクを妨げる可能性あり
 - 物理 ACK（ESP-NOW の MAC 層 ACK）は、復号に失敗しても返る点に注意。`onSendResult(SentOk)` は「物理送信成功」を意味し、論理的な到達は保証しない  
-- アプリ層 ACK（論理 ACK）: `enableAppAck=true` の場合、ユニキャスト受信時に msgId を含む Ack パケットを自動返信し、送信側は Ack 未達ならリトライ/再JOIN を行う  
-  - 物理 ACK が無くても論理 ACK を受け取れた場合は「到達成功」とみなしつつ警告ログを残す  
-  - 物理 ACK だけで論理 ACK が無い場合は「未達/不明」としてリトライまたは再JOIN を行う
-  - app-ACK 有効のユニキャストでは `AppAckReceived` を最終成功、`AppAckTimeout` を失敗として通知し、`SentOk` は app-ACK 無効時のみの完了通知（物理 ACK は完了判定に使わない）
 - 連続失敗時の自動パージ（オプション）: `maxAckFailures>0` の場合、`failureWindowMs` 内に連続で `AppAckTimeout`/`SendFailed` がしきい値を超えたピアを `removePeer`。`rejoinAfterPurge=true` ならパージ後に `sendRegistrationRequest()` を自動送信する
   - onSendResult の完了は AppAckReceived（論理 ACK）を以て成功とし、AppAckTimeout で失敗扱い（物理送信成功だけでは完了としない）
 
