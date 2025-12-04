@@ -195,10 +195,6 @@ struct Config {
   - `ESP_LOGI`: `begin` 成功、JOIN 成功（Ack 確認）、peer 追加/削除
   - `ESP_LOGD/V`: デバッグ用途（seq/msgId/リトライ回数など詳細トレース）
 
-推奨値の目安:
-- フル MTU を使いたい場合は `maxPayloadBytes = 1470`（デフォルト）。  
-- 互換性・メモリ重視では `maxPayloadBytes = 250`（kMaxPayloadLegacy）に下げ、`maxQueueLength` もメモリに合わせて調整。
-
 ### 7.3 EspNowBus クラス
 
 ```cpp
@@ -235,6 +231,10 @@ static constexpr uint32_t kUseDefault = portMAX_DELAY - 1; // Config.sendTimeout
 static constexpr uint16_t kMaxPayloadDefault = 1470; // ESP-NOW v2.0 の MTU 目安
 static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 ```
+
+推奨値の目安:
+- フル MTU を使いたい場合は `maxPayloadBytes = 1470`（デフォルト）。  
+- 互換性・メモリ重視では `maxPayloadBytes = 250`（kMaxPayloadLegacy）に下げ、`maxQueueLength` もメモリに合わせて調整。
 
 無線設定:
 - `channel`: -1 の場合は `groupId` を 1〜13 にマッピングして自動決定。明示指定は 1〜13 にクリップして使用。
