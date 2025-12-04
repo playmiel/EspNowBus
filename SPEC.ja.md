@@ -50,7 +50,7 @@
 - ロールや `canAcceptRegistrations` は利用せず、groupId/auth が正しい募集に対して応答・登録するシンプル運用
 - 募集（JOIN 要請）はブロードキャストで送信。既定で 30 秒間隔の自動募集が有効  
   - `0` を設定すると自動募集は無効化され、手動で `sendRegistrationRequest()` を呼んだときのみ募集を出す  
-  - 全体募集（誰でも応募可）と、特定 MAC を明示した対象限定募集を使い分けられる
+  - 全体募集（誰でも応募可、`targetMac = ff:ff:ff:ff:ff:ff`）と、特定 MAC を `targetMac` で明示した対象限定募集を使い分けられる
 - 応募側は groupId/auth を検証し、正しければ自動で `addPeer()` する
 
 ---
@@ -125,7 +125,8 @@ groupSecret → groupId / keyAuth / keyBcast
   - `groupId`
   - `nonceA[8]`
   - `prevToken[8]`（前回 responder の nonceB。無ければ 0 埋め）
-  - `authTag = HMAC(keyAuth, header..prevToken)`
+  - `targetMac[6]`（全体募集は `ff:ff:ff:ff:ff:ff`。対象限定募集は応募してほしい MAC を指定）
+  - `authTag = HMAC(keyAuth, header..targetMac)`
 - ControlJoinAck:
   - `BaseHeader`（id に seq）
   - `groupId`
@@ -296,9 +297,10 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 ### 8.3 自動ペア登録
 - 募集（JOIN 要請）は 30 秒間隔の定期実行が既定。`0` を設定すると自動募集は無効化され、必要なときだけアプリが明示的に `sendRegistrationRequest()` を呼び出す運用になる  
   - 定期募集の間隔は任意に `>0` ms で調整可能  
-  - 全体募集（誰でも応募可）と、特定 MAC を明示した「対象限定募集」を使い分けられる。後者は既存ペアだけを再接続したいときに使う
+  - 全体募集（誰でも応募可、`targetMac = ff:ff:ff:ff:ff:ff`）と、特定 MAC を `targetMac` で明示した「対象限定募集」を使い分けられる。後者は既存ペアだけを再接続したいときに使う
 - 受信側の応募判定  
   - groupId 不一致は無視  
+  - `targetMac` が `ff:ff:ff:ff:ff:ff` 以外の場合は、自分の MAC と一致するときのみ応募する（一致しなければ無視）
   - 未ペア端末からの募集 → 応募する  
   - 既存ペアからの募集 → 直近ハートビート時刻と送信失敗カウントを確認し、リンク切れの可能性があれば再応募。通信良好なら無視
 - 片側が再起動してユニキャストが届かなくなった場合でも、ブロードキャスト募集（必要なら対象限定）で再ペアリングできる前提の運用とする
