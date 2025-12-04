@@ -104,6 +104,7 @@ groupSecret → groupId / keyAuth / keyBcast
 - `PeerAuthHello` / `PeerAuthResponse`  
 - `ControlJoinReq` / `ControlJoinAck`  
 - `ControlAppAck`（論理 ACK 用）
+- `ControlHeartbeat`（ユニキャスト心拍確認）
 
 ### 6.3 種別別の振る舞い
 #### DataUnicast
@@ -133,6 +134,12 @@ groupSecret → groupId / keyAuth / keyBcast
   - `nonceA[8]`（エコー）
   - `nonceB[8]`（新規生成）
   - `authTag = HMAC(keyAuth, header..nonceB)`
+- ControlHeartbeat（ユニキャスト送信）:
+  - `BaseHeader`（id = msgId）
+  - `groupId`
+  - `kind`（1byte: 0=Ping, 1=Pong などの簡易種別）
+  - `authTag = HMAC(keyAuth, header..kind)`
+  - AppAck が有効ならこれに対して AppAck を返し、Ping/Pong どちらでも受信をもってハートビート有効とみなす
 - ControlAppAck（ユニキャストの論理 ACK）:
   - `BaseHeader`（id = msgId）
   - `groupId`
@@ -148,32 +155,30 @@ groupSecret → groupId / keyAuth / keyBcast
 
 ```cpp
 struct Config {
-    const char* groupName;               // 必須
+    const char* groupName;                  // 必須
 
-    bool useEncryption        = true;    // ESP-NOW 暗号化
-    bool enablePeerAuth       = true;    // チャレンジレスポンス ON
+    bool useEncryption        = true;       // ESP-NOW 暗号化
+    bool enablePeerAuth       = true;       // チャレンジレスポンス ON
+    bool enableAppAck = true;               // 既定 ON。OFF にすると物理 ACK のみで送達確認はアプリ任せ
 
     // 無線設定
-    int8_t channel = -1;                 // -1 で groupName 由来のハッシュ値から自動決定 (1〜13 を使用)、範囲外はクリップ
+    int8_t channel = -1;                    // -1 で groupName 由来のハッシュ値から自動決定 (1〜13 を使用)、範囲外はクリップ
     wifi_phy_rate_t phyRate = WIFI_PHY_RATE_11M_L; // 送信速度。既定は 11M。必要に応じて高速化
 
-    uint16_t maxQueueLength   = 16;      // 送信キュー長
-    uint16_t maxPayloadBytes  = 1470;    // 送信ペイロード上限（ESP-NOW v2.0 想定）。互換性重視なら 250 に下げる
-    uint32_t sendTimeoutMs    = 50;      // キュー投入時の既定タイムアウト。0=非ブロック, portMAX_DELAY=無期限
-    uint8_t  maxRetries       = 1;       // 送信リトライ回数（初回送信を除く）。0 でリトライなし
-    uint16_t retryDelayMs     = 0;       // リトライ間隔。送信タイムアウト検知後に即再送が既定なので 0ms（バックオフしたい場合のみ設定）
-    uint32_t txTimeoutMs      = 120;     // 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め
+    uint16_t maxQueueLength   = 16;         // 送信キュー長
+    uint16_t maxPayloadBytes  = 1470;       // 送信ペイロード上限（ESP-NOW v2.0 想定）。互換性重視なら 250 に下げる
+    uint32_t sendTimeoutMs    = 50;         // キュー投入時の既定タイムアウト。0=非ブロック, portMAX_DELAY=無期限
+    uint8_t  maxRetries       = 1;          // 送信リトライ回数（初回送信を除く）。0 でリトライなし
+    uint16_t retryDelayMs     = 0;          // リトライ間隔。送信タイムアウト検知後に即再送が既定なので 0ms（バックオフしたい場合のみ設定）
+    uint32_t txTimeoutMs      = 120;        // 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め
 
     // ハートビート監視
-    uint32_t heartbeatIntervalMs = 10000; // 生存確認の基準時間。1x でユニキャスト確認、2x で対象限定募集、3x で切断
+    uint32_t heartbeatIntervalMs = 10000;   // 生存確認の基準時間。1x でユニキャスト確認、2x で対象限定募集、3x で切断
 
     // 送信タスク（送信キュー処理）の RTOS 設定
     int8_t taskCore = ARDUINO_RUNNING_CORE; // -1 でピン留めなし、0/1 で指定。既定は loop と同じコア。
     UBaseType_t taskPriority = 3;           // 1〜5 目安。loop(1) より高く、WiFi タスク(4〜5) より低めが推奨。
     uint16_t taskStackSize = 4096;          // 送信タスクのスタックサイズ（バイト）
-
-    // アプリ層 ACK（論理 ACK）を自動付与するか
-    bool enableAppAck = true;               // 既定 ON。OFF にすると物理 ACK のみで送達確認はアプリ任せ
 
     // リプレイ窓サイズ（可変設定）
     uint16_t replayWindowBcast = 64;        // Broadcast 用
@@ -327,7 +332,7 @@ ControlJoinReq をブロードキャスト（groupId + authTag）
 
 ### 8.5 ハートビートとペア維持
 - ユニキャスト受信や暗号化済みのソフト ACK を受信したタイミングで「生存確認時刻」と「失敗カウント」をリセットする
-- 設定したハートビート確認時間（`Config.heartbeatIntervalMs`, 既定 10s）を超過したら、ユニキャストでハートビート確認パケットを送信する（ピアが外れていれば暗号化解除に失敗して受信できない想定）
+- 設定したハートビート確認時間（`Config.heartbeatIntervalMs`, 既定 10s）を超過したら、ユニキャストで `ControlHeartbeat(Ping)` を送信する（ピアが外れていれば暗号化解除に失敗して受信できない想定。AppAck で到達確認）
 - ハートビート確認時間の **2 倍** を超過したら、ペア先の MAC を含めた対象限定のブロードキャスト募集を送信し、再ペアリングを試みる
 - **3 倍** 超過したら生存していないと判定し、ペアを解除する
 - 片側再起動によるユニキャスト不達を吸収するため、上記の対象限定募集でリンク復旧を優先する設計とする
