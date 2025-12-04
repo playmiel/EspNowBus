@@ -187,7 +187,7 @@ struct Config {
 };
 ```
 
-### 7.3 ログ出力
+### 7.2 ログ出力
 - ESP-IDF のログマクロ（`ESP_LOGE/W/I/D/V`）を利用する。デフォルトタグは `"EspNowBus"`。
 - 主な出力例（目安）:
   - `ESP_LOGE`: `begin` 失敗（esp_now_init/メモリ確保/タスク生成）、peer 追加失敗、HMAC 検証失敗（原因付き）、リトライ枯渇による送信失敗
@@ -199,7 +199,7 @@ struct Config {
 - フル MTU を使いたい場合は `maxPayloadBytes = 1470`（デフォルト）。  
 - 互換性・メモリ重視では `maxPayloadBytes = 250`（kMaxPayloadLegacy）に下げ、`maxQueueLength` もメモリに合わせて調整。
 
-### 7.2 EspNowBus クラス
+### 7.3 EspNowBus クラス
 
 ```cpp
 class EspNowBus {
