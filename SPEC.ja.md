@@ -183,7 +183,6 @@ struct Config {
 
     // リプレイ窓サイズ（可変設定）
     uint16_t replayWindowBcast = 64;        // Broadcast 用
-    uint16_t replayWindowJoin  = 64;        // JOIN 用（内部窓は64まで）
 
 };
 ```
@@ -322,6 +321,11 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 5. 受け入れ側: Ack 送信後に応募元 MAC を peer 登録し、以後のユニキャストを暗号化で送る  
 6. 要求側: Ack（nonceA と targetMac が一致）を受信したら peer を追加し、以後のユニキャストを暗号化で送る
 
+JOIN リプレイに関する考え方:
+- 窓は設けず、`nonceA/nonceB/targetMac` と HMAC 突き合わせで「当該募集への Ack だけ」を受理する設計
+- 古い JOIN/Ack が飛んできてもハートビートと送信失敗カウントで再JOIN判定が抑制される前提
+- ControlJoinAck を偽造するには送信元 MAC のなりすましと nonce/HMAC の一致が必要
+
 ### 8.4 重複検出・リトライ扱い
 - Unicast: peer ごとに最後に受理した `msgId` を記録し、同一 `msgId`（リトライ）は破棄（必要なら onReceive に「リトライだった」メタ情報を渡す）  
 - Broadcast: `seq` の再送は authTag 検証後、リプレイ窓で破棄。`flags.isRetry` はデバッグ用フラグとして利用  
@@ -329,7 +333,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - 論理 ACK: 受信側が重複と判定して UserPayload を渡さなかった場合でも、`enableAppAck=true` なら msgId を含む Ack を返信する（送信側の再送抑止のため）
 - onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout` を固定列挙で定義
 - ControlAppAck のリプレイ: in-flight の msgId と一致するもののみ受理し、その他は無視（警告ログ）。16bit msgId の wrap によりごく稀に誤完了の可能性はあるが許容する方針
-- リプレイ窓設定 `replayWindowBcast`/`Join` は実質 64 が上限（内部は 64bit）。設定値が 64 を超える場合は 64 に丸めて扱う
+- JOIN のリプレイ窓は設けず、`nonceA/nonceB/targetMac` の突き合わせと HMAC で保護しつつ、ハートビート＋送信失敗カウントで再JOINを制御する（古い JOIN を受けても即座に再登録しない運用前提）
 
 ### 8.5 ハートビートとペア維持
 - ユニキャスト受信や暗号化済みのソフト ACK を受信したタイミングで「生存確認時刻」と「失敗カウント」をリセットする
