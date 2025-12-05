@@ -212,7 +212,6 @@ private:
     uint32_t txDeadlineMs_ = 0;
     uint32_t lastJoinReqMs_ = 0;
     uint32_t lastAutoJoinMs_ = 0;
-    uint32_t lastAutoJoinMs_ = 0;
 
     static constexpr uint8_t kMagic = 0xEB;
     static constexpr uint8_t kVersion = 1;
