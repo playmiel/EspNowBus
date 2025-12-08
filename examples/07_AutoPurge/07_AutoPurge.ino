@@ -9,14 +9,8 @@ void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetr
 {
   // en: Print sender and payload; app-ACK is auto-sent when enabled.
   // ja: 送信元とペイロードを表示。AppAck は有効時に自動返信。
-  Serial.printf("RX len=%u retry=%d\n", (unsigned)len, wasRetry);
-}
-
-void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
-{
-  // en: Report send status (app-ACK enabled by default)
-  // ja: 送信ステータスを表示（デフォルトで論理ACK待ち）
-  Serial.printf("Send status=%d\n", (int)status);
+  Serial.printf("RX from %02X:%02X:%02X:%02X:%02X:%02X data='%s' len=%u retry=%d\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], (const char *)data, (unsigned)len, wasRetry);
 }
 
 void onJoinEventCb(const uint8_t mac[6], bool accepted, bool isAck)
@@ -33,32 +27,23 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-purge";
+  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  cfg.heartbeatIntervalMs = 5000;          // en: Heartbeat interval in milliseconds(10s->5s) / ja: ハートビート間隔ミリ秒(10秒->5秒)
+  // en: ping cadence; 2x -> targeted join, 3x -> drop
+  // ja: ping の間隔; 2x でターゲットJOINチャレンジ、3x でピア解消
 
   bus.onReceive(onReceive);
-  bus.onSendResult(onSendResult);
   bus.onJoinEvent(onJoinEventCb);
 
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");
   }
-
-  bus.sendJoinRequest();
 }
 
 void loop()
 {
-  static uint32_t lastJoin = 0;
   static uint32_t lastSend = 0;
-
-  // en: Periodically ask others to register us (helps when peers reboot)
-  // ja: 定期的にピア登録を依頼（相手が再起動しても再登録できるように）
-  if (millis() - lastJoin > 5000)
-  {
-    lastJoin = millis();
-    bus.sendJoinRequest();
-  }
 
   if (millis() - lastSend > 3000)
   {
