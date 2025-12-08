@@ -56,6 +56,6 @@ void loop()
     last = millis();
     const char msg[] = "hello on fixed channel";
     bus.broadcast(msg, sizeof(msg));
-    printChannel(); // show the actual channel after begin()
+    printChannel();
   }
 }
