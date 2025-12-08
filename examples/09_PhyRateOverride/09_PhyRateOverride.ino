@@ -27,8 +27,10 @@ const char *rateName(wifi_phy_rate_t rate)
 
 void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry, bool isBroadcast)
 {
-  Serial.printf("RX from %02X:%02X:%02X:%02X:%02X:%02X data='%s' retry=%d broadcast=%d\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], (const char *)data, wasRetry, isBroadcast);
+  // en: Print sender and payload; app-ACK is auto-sent when enabled.
+  // ja: 送信元とペイロードを表示。AppAck は有効時に自動返信。
+  Serial.printf("RX from %02X:%02X:%02X:%02X:%02X:%02X data='%s' len=%u retry=%d\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], (const char *)data, (unsigned)len, wasRetry);
 }
 
 void setup()
