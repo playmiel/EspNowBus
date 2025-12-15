@@ -8,10 +8,11 @@ bool running = false;
 
 void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry, bool isBroadcast)
 {
-  Serial.printf("RX %s from %02X:%02X:%02X:%02X:%02X:%02X len=%u retry=%d\n",
-                isBroadcast ? "bcast" : "uni",
+  // en: Print sender and payload (AppAck enabled by default)
+  // ja: 送信元とペイロードを表示（AppAck は既定で有効）
+  Serial.printf("RX from %02X:%02X:%02X:%02X:%02X:%02X data='%s' len=%u retry=%d bcast=%d\n",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-                static_cast<unsigned>(len), wasRetry);
+                (const char *)data, static_cast<unsigned>(len), wasRetry, isBroadcast);
 }
 
 void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
